@@ -1,15 +1,22 @@
+import '../global.css';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StripeProvider } from '@stripe/stripe-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { USER_TYPES } from '@/utils/constants';
 import { ENV } from '@/config/env';
 
+// Stripe no soporta web — se carga solo en nativo
+const StripeWrapper =
+  Platform.OS !== 'web'
+    ? require('@stripe/stripe-react-native').StripeProvider
+    : ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
 export default function RootLayout() {
   const { session, user, professionalProfile, isLoading } = useAuth();
-  useNotifications(); // registra token y suscribe Realtime globalmente
+  useNotifications();
   const router = useRouter();
   const segments = useSegments();
 
@@ -39,7 +46,6 @@ export default function RootLayout() {
         return;
       }
 
-      // Profesional sin perfil → forzar onboarding
       if (
         user.user_type === USER_TYPES.PROFESSIONAL &&
         !professionalProfile &&
@@ -50,14 +56,18 @@ export default function RootLayout() {
     }
   }, [session, user, professionalProfile, isLoading]);
 
+  const stripeProps = Platform.OS !== 'web'
+    ? {
+        publishableKey: ENV.STRIPE_PUBLISHABLE_KEY,
+        urlScheme: 'habitup',
+        merchantIdentifier: 'merchant.com.habitup.app',
+      }
+    : {};
+
   return (
-    <StripeProvider
-      publishableKey={ENV.STRIPE_PUBLISHABLE_KEY}
-      urlScheme="habitup"
-      merchantIdentifier="merchant.com.habitup.app"
-    >
+    <StripeWrapper {...stripeProps}>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }} />
-    </StripeProvider>
+    </StripeWrapper>
   );
 }

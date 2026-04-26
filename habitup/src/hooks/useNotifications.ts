@@ -1,22 +1,26 @@
 import { useEffect, useRef } from 'react';
-import * as ExpoNotifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import * as ExpoNotifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { notificationsService } from '@/services/notifications.service';
 import type { Notification } from '@/types/models';
 
-// Configurar cómo mostrar las notificaciones cuando la app está en primer plano
-ExpoNotifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Notificaciones solo disponibles en nativo
+const isNative = Platform.OS !== 'web';
+
+if (isNative) {
+  ExpoNotifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export function useNotifications() {
   const user = useAuthStore((s) => s.user);
@@ -25,13 +29,11 @@ export function useNotifications() {
   const responseListenerRef = useRef<ExpoNotifications.EventSubscription | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof notificationsService.subscribeToNew> | null>(null);
 
-  // ── 1. Solicitar permisos y registrar token ────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isNative) return;
     registerForPushNotifications();
   }, [user?.id]);
 
-  // ── 2. Cargar notificaciones y suscribir Realtime ──
   useEffect(() => {
     if (!user) return;
 
@@ -47,8 +49,9 @@ export function useNotifications() {
     };
   }, [user?.id]);
 
-  // ── 3. Manejar tap en notificación (foreground y background) ──
   useEffect(() => {
+    if (!isNative) return;
+
     responseListenerRef.current = ExpoNotifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data as Record<string, string>;
@@ -56,7 +59,6 @@ export function useNotifications() {
       },
     );
 
-    // Notificación que abrió la app desde estado cerrado
     ExpoNotifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, string>;
@@ -68,20 +70,17 @@ export function useNotifications() {
     };
   }, []);
 
-  // Sincronizar el badge de la app con el contador de no leídas
   useEffect(() => {
+    if (!isNative) return;
     ExpoNotifications.setBadgeCountAsync(unreadCount).catch(() => null);
   }, [unreadCount]);
 
   return { unreadCount };
 }
 
-// ── Helpers ───────────────────────────────────────────
-
 async function registerForPushNotifications() {
-  if (Platform.OS === 'web') return;
+  if (!isNative) return;
 
-  // Verificar / solicitar permisos
   const { status: existing } = await ExpoNotifications.getPermissionsAsync();
   let finalStatus = existing;
 
@@ -92,7 +91,6 @@ async function registerForPushNotifications() {
 
   if (finalStatus !== 'granted') return;
 
-  // Configurar canal para Android
   if (Platform.OS === 'android') {
     await ExpoNotifications.setNotificationChannelAsync('default', {
       name: 'HabitUp',
@@ -108,7 +106,7 @@ async function registerForPushNotifications() {
     });
     await notificationsService.saveExpoPushToken(tokenData.data);
   } catch {
-    // Puede fallar en emuladores sin servicios de Google
+    // Falla en emuladores sin servicios de Google
   }
 }
 
@@ -116,8 +114,7 @@ function navigateFromPushData(
   data: Record<string, string>,
   router: ReturnType<typeof useRouter>,
 ) {
-  const { type, projectId, leadId, quoteId } = data;
-
+  const { type, projectId, leadId } = data;
   if (!type) return;
 
   switch (type) {
