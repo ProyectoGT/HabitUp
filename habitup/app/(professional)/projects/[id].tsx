@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   Alert, RefreshControl,
@@ -8,23 +8,25 @@ import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PROJECT_STATUS } from '@/utils/constants';
 import type { ProjectWithDetails, ProjectStatus } from '@/services/projects.service';
+import { Screen, Card, Badge, Button } from '@/components/ui';
+import { ArrowLeft, MessageCircle, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react-native';
 
-const STATUS_CONFIG: Record<string, { label: string; badgeStyle: string }> = {
-  pendiente:  { label: 'Pendiente',   badgeStyle: 'bg-yellow-100 text-yellow-700' },
-  en_curso:   { label: 'En curso',    badgeStyle: 'bg-blue-100 text-brand' },
-  pausado:    { label: 'Pausado',     badgeStyle: 'bg-gray-100 text-gray-600' },
-  completado: { label: 'Completado',  badgeStyle: 'bg-green-100 text-green-700' },
-  cancelado:  { label: 'Cancelado',   badgeStyle: 'bg-red-100 text-red-600' },
+const STATUS_CONFIG: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
+  pendiente:  { label: 'Pendiente',   variant: 'warning' },
+  en_curso:   { label: 'En curso',    variant: 'info' },
+  pausado:    { label: 'Pausado',     variant: 'default' },
+  completado: { label: 'Completado',  variant: 'success' },
+  cancelado:  { label: 'Cancelado',   variant: 'error' },
 };
 
 // Transiciones de estado permitidas para el profesional
-const NEXT_STATUSES: Record<string, { status: ProjectStatus; label: string; style: string }[]> = {
-  pendiente: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Iniciar proyecto', style: 'bg-brand' }],
+const NEXT_STATUSES: Record<string, { status: ProjectStatus; label: string; variant: 'primary' | 'outline' | 'ghost'; icon: any }> = {
+  pendiente: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Iniciar proyecto', variant: 'primary', icon: PlayCircle }],
   en_curso: [
-    { status: PROJECT_STATUS.PAUSED, label: 'Pausar proyecto', style: 'bg-gray-200 text-gray-800' },
-    { status: PROJECT_STATUS.COMPLETED, label: 'Marcar como completado', style: 'bg-green-500' },
+    { status: PROJECT_STATUS.PAUSED, label: 'Pausar proyecto', variant: 'outline', icon: PauseCircle },
+    { status: PROJECT_STATUS.COMPLETED, label: 'Marcar como completado', variant: 'primary', icon: CheckCircle2 },
   ],
-  pausado: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Reanudar proyecto', style: 'bg-brand' }],
+  pausado: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Reanudar proyecto', variant: 'primary', icon: PlayCircle }],
 };
 
 export default function ProfessionalProjectDetailScreen() {
@@ -79,126 +81,145 @@ export default function ProfessionalProjectDetailScreen() {
     );
   };
 
-  if (isLoading) return <View className="flex-1 items-center justify-center"><ActivityIndicator color="#2563eb" /></View>;
-  if (!project) return <View className="flex-1 items-center justify-center"><Text className="text-gray-500">Proyecto no encontrado</Text></View>;
+  if (isLoading) return (
+    <Screen safeArea className="items-center justify-center">
+      <ActivityIndicator color="#6366F1" size="large" />
+    </Screen>
+  );
+  
+  if (!project) return (
+    <Screen safeArea className="items-center justify-center p-6">
+      <Text className="text-muted-text text-lg text-center">Proyecto no encontrado</Text>
+      <Button label="Volver" variant="outline" onPress={() => router.back()} className="mt-4" />
+    </Screen>
+  );
 
   const clientName = (project.client as { full_name: string } | undefined)?.full_name ?? 'Cliente';
   const clientId = project.client_id;
-  const statusCfg = STATUS_CONFIG[project.status] ?? { label: project.status, badgeStyle: 'bg-gray-100 text-gray-500' };
+  const statusCfg = STATUS_CONFIG[project.status] ?? { label: project.status, variant: 'default' };
   const nextActions = NEXT_STATUSES[project.status] ?? [];
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <Screen safeArea={false} className="flex-1">
       <ScrollView
         contentContainerClassName="pb-32"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
       >
         {/* Header */}
-        <View className="bg-white px-5 pt-14 pb-5 shadow-sm">
-          <TouchableOpacity onPress={() => router.back()} className="mb-4">
-            <Text className="text-brand">← Volver</Text>
+        <View className="bg-surface px-6 pt-16 pb-6 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-3xl z-10">
+          <TouchableOpacity onPress={() => router.back()} className="mb-4 flex-row items-center -ml-1">
+            <ArrowLeft size={20} color="#6366F1" />
+            <Text className="text-primary font-semibold text-base ml-2">Volver</Text>
           </TouchableOpacity>
           <View className="flex-row items-start justify-between">
-            <Text className="text-xl font-bold text-gray-900 flex-1 mr-3">{project.title}</Text>
-            <Text className={`text-xs px-3 py-1 rounded-full font-medium ${statusCfg.badgeStyle}`}>
-              {statusCfg.label}
-            </Text>
+            <Text className="text-2xl font-extrabold text-text flex-1 mr-4 leading-tight">{project.title}</Text>
+          </View>
+          <View className="mt-4 self-start">
+            <Badge label={statusCfg.label} variant={statusCfg.variant} />
           </View>
         </View>
 
-        {/* Info financiera */}
-        <Section title="Resumen económico">
-          <FinanceRow
-            label="Precio acordado"
-            value={formatCurrency(project.agreed_price)}
-            sublabel="Total cliente"
-          />
-          <View className="h-px bg-gray-100 my-3" />
-          <FinanceRow
-            label="Tu cobro"
-            value={formatCurrency(project.professional_receives)}
-            sublabel={`Tras comisión ${project.platform_commission_pct}%`}
-            highlight
-          />
-          <FinanceRow
-            label="Comisión HabitUp"
-            value={formatCurrency(project.platform_commission_amount)}
-            sublabel={`${project.platform_commission_pct}%`}
-          />
-        </Section>
-
-        {/* Detalles */}
-        <Section title="Detalles del proyecto">
-          <Row label="Cliente" value={clientName} />
-          {project.categories && (
-            <Row label="Categoría" value={(project.categories as { name: string }).name} />
-          )}
-          {project.start_date && <Row label="Inicio" value={formatDate(project.start_date)} />}
-          {project.expected_end_date && (
-            <Row label="Fin previsto" value={formatDate(project.expected_end_date)} />
-          )}
-          {project.actual_end_date && (
-            <Row label="Fecha fin real" value={formatDate(project.actual_end_date)} />
-          )}
-          <Row label="Estado de pago" value={project.payment_status} />
-        </Section>
-
-        {/* Cambios de estado */}
-        {nextActions.length > 0 && (
-          <Section title="Acciones">
-            {isUpdating ? (
-              <ActivityIndicator color="#2563eb" />
-            ) : (
-              nextActions.map((action) => (
-                <TouchableOpacity
-                  key={action.status}
-                  onPress={() => onChangeStatus(action)}
-                  className={`py-3 rounded-xl items-center mb-2 ${action.style}`}
-                >
-                  <Text className={`font-semibold ${action.style.includes('gray-200') ? 'text-gray-800' : 'text-white'}`}>
-                    {action.label}
-                  </Text>
-                </TouchableOpacity>
-              ))
-            )}
+        <View className="px-6 pt-6 gap-6">
+          {/* Info financiera */}
+          <Section title="Resumen económico">
+            <FinanceRow
+              label="Precio acordado"
+              value={formatCurrency(project.agreed_price)}
+              sublabel="Total cliente"
+            />
+            <View className="h-px bg-border/50 my-3" />
+            <FinanceRow
+              label="Tu cobro"
+              value={formatCurrency(project.professional_receives)}
+              sublabel={`Tras comisión ${project.platform_commission_pct}%`}
+              highlight
+            />
+            <FinanceRow
+              label="Comisión HabitUp"
+              value={formatCurrency(project.platform_commission_amount)}
+              sublabel={`${project.platform_commission_pct}%`}
+            />
           </Section>
-        )}
+
+          {/* Detalles */}
+          <Section title="Detalles del proyecto">
+            <Row label="Cliente" value={clientName} />
+            {project.categories && (
+              <Row label="Categoría" value={(project.categories as { name: string }).name} />
+            )}
+            {project.start_date && <Row label="Inicio" value={formatDate(project.start_date)} />}
+            {project.expected_end_date && (
+              <Row label="Fin previsto" value={formatDate(project.expected_end_date)} />
+            )}
+            {project.actual_end_date && (
+              <Row label="Fecha fin real" value={formatDate(project.actual_end_date)} />
+            )}
+            <Row label="Estado de pago" value={project.payment_status} />
+          </Section>
+
+          {/* Cambios de estado */}
+          {nextActions.length > 0 && (
+            <Section title="Acciones">
+              {isUpdating ? (
+                <ActivityIndicator color="#6366F1" size="small" className="py-2" />
+              ) : (
+                <View className="gap-3">
+                  {nextActions.map((action, index) => {
+                    const ActionIcon = action.icon;
+                    return (
+                      <Button
+                        key={action.status}
+                        label={action.label}
+                        variant={action.variant}
+                        onPress={() => onChangeStatus(action)}
+                        leftIcon={<ActionIcon size={20} color={action.variant === 'primary' ? '#FFF' : '#6366F1'} />}
+                        className={action.variant === 'primary' ? 'shadow-sm shadow-primary/30' : ''}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+            </Section>
+          )}
+        </View>
       </ScrollView>
 
       {/* CTA — ir al chat */}
       {project.status !== PROJECT_STATUS.CANCELLED && (
-        <View className="absolute bottom-0 left-0 right-0 bg-white px-5 py-4 border-t border-gray-100">
-          <TouchableOpacity
+        <View className="absolute bottom-0 left-0 right-0 bg-surface px-6 py-4 border-t border-border/50 shadow-lg shadow-black/10 z-20">
+          <Button
+            label="Ir al chat"
             onPress={() =>
               router.push({
                 pathname: '/chat/[projectId]',
                 params: { projectId: id, recipientId: clientId, title: clientName },
               })
             }
-            className="bg-brand py-4 rounded-xl items-center"
-          >
-            <Text className="text-white font-semibold text-base">💬  Ir al chat</Text>
-          </TouchableOpacity>
+            leftIcon={<MessageCircle size={20} color="#FFF" />}
+            size="lg"
+            className="shadow-sm shadow-primary/30"
+          />
         </View>
       )}
-    </View>
+    </Screen>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="bg-white mx-4 mt-3 rounded-2xl p-5 shadow-sm">
-      <Text className="text-base font-semibold text-gray-900 mb-4">{title}</Text>
+    <Card variant="elevated" className="p-5">
+      <Text className="text-lg font-bold text-text mb-4 border-b border-border/50 pb-2">{title}</Text>
       {children}
-    </View>
+    </Card>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row justify-between items-center py-2 border-b border-gray-50">
-      <Text className="text-sm text-gray-500">{label}</Text>
-      <Text className="text-sm font-medium text-gray-800">{value}</Text>
+    <View className="flex-row justify-between items-center py-2.5 border-b border-border/30">
+      <Text className="text-sm font-medium text-muted-text">{label}</Text>
+      <Text className="text-sm font-bold text-text">{value}</Text>
     </View>
   );
 }
@@ -209,12 +230,12 @@ function FinanceRow({
   label: string; value: string; sublabel?: string; highlight?: boolean;
 }) {
   return (
-    <View className="flex-row justify-between items-start">
+    <View className="flex-row justify-between items-start py-1">
       <View>
-        <Text className="text-sm text-gray-700">{label}</Text>
-        {sublabel && <Text className="text-xs text-gray-400">{sublabel}</Text>}
+        <Text className="text-sm font-medium text-text">{label}</Text>
+        {sublabel && <Text className="text-xs font-medium text-muted-text mt-0.5">{sublabel}</Text>}
       </View>
-      <Text className={`text-base font-bold ${highlight ? 'text-green-600' : 'text-gray-700'}`}>
+      <Text className={`text-base font-bold ${highlight ? 'text-success' : 'text-text'}`}>
         {value}
       </Text>
     </View>

@@ -1,9 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { LeadCard } from '@/components/leads';
 import type { Lead } from '@/types/models';
+import { Screen, Button } from '@/components/ui';
+import { ClipboardList, Plus } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 export default function ClientLeadsScreen() {
   const router = useRouter();
@@ -11,6 +14,9 @@ export default function ClientLeadsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const loadLeads = useCallback(async () => {
     try {
@@ -33,34 +39,40 @@ export default function ClientLeadsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-4 pt-14 pb-4 shadow-sm flex-row items-center justify-between">
-        <Text className="text-xl font-bold text-gray-900">Mis solicitudes</Text>
-        <TouchableOpacity
+    <Screen safeArea={false} className="flex-1">
+      <View className="bg-surface px-6 pt-16 pb-4 rounded-b-3xl shadow-sm shadow-primary/10 z-10 border-b border-border/50 flex-row items-center justify-between">
+        <Text className="text-2xl font-extrabold text-text">Mis solicitudes</Text>
+        <Button
+          label="Nueva"
+          leftIcon={<Plus size={16} color="#FFF" />}
           onPress={() => router.push('/(client)/leads/create')}
-          className="bg-brand px-4 py-2 rounded-xl"
-        >
-          <Text className="text-white font-semibold text-sm">+ Nueva</Text>
-        </TouchableOpacity>
+          size="sm"
+          className="shadow-sm shadow-primary/30"
+        />
       </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#2563eb" />
+          <ActivityIndicator color="#6366F1" size="large" />
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-red-500 text-center">{error}</Text>
-          <TouchableOpacity onPress={loadLeads} className="mt-4">
-            <Text className="text-brand font-medium">Reintentar</Text>
-          </TouchableOpacity>
+          <Text className="text-error text-center bg-error/10 p-4 rounded-xl w-full">{error}</Text>
+          <Button label="Reintentar" variant="outline" onPress={loadLeads} className="mt-4" />
         </View>
       ) : (
         <FlatList
           data={leads}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pt-4 pb-10"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerClassName="px-6 pt-6 pb-10"
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              tintColor="#6366F1" 
+              colors={['#6366F1']} 
+            />
+          }
           renderItem={({ item }) => (
             <LeadCard
               lead={item}
@@ -68,22 +80,24 @@ export default function ClientLeadsScreen() {
             />
           )}
           ListEmptyComponent={
-            <View className="items-center mt-20">
-              <Text className="text-4xl mb-4">📋</Text>
-              <Text className="text-gray-700 font-semibold text-base">Sin solicitudes todavía</Text>
-              <Text className="text-gray-400 text-sm mt-1 text-center">
-                Crea una solicitud para recibir presupuestos de profesionales
+            <View className="items-center justify-center mt-20">
+              <View className="w-20 h-20 bg-border/30 rounded-full items-center justify-center mb-6">
+                <ClipboardList size={40} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={1.5} />
+              </View>
+              <Text className="text-text font-bold text-xl mb-2">Sin solicitudes todavía</Text>
+              <Text className="text-muted-text text-center px-4 leading-relaxed">
+                Crea una solicitud para recibir presupuestos de los mejores profesionales.
               </Text>
-              <TouchableOpacity
+              <Button
+                label="Crear solicitud"
                 onPress={() => router.push('/(client)/leads/create')}
-                className="bg-brand mt-6 px-6 py-3 rounded-xl"
-              >
-                <Text className="text-white font-semibold">Crear solicitud</Text>
-              </TouchableOpacity>
+                className="mt-8 px-8 shadow-sm shadow-primary/30"
+                size="lg"
+              />
             </View>
           }
         />
       )}
-    </View>
+    </Screen>
   );
 }

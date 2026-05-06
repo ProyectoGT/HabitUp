@@ -1,70 +1,97 @@
 import { View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { Home, Megaphone, Briefcase, Image as ImageIcon, User, Bell } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return <Text className={focused ? 'text-xl' : 'text-xl opacity-50'}>{emoji}</Text>;
+function TabIcon({ Icon, focused, color }: { Icon: any; focused: boolean; color: string }) {
+  return (
+    <View className="items-center justify-center mt-1">
+      <Icon color={color} size={24} strokeWidth={focused ? 2.5 : 2} opacity={focused ? 1 : 0.6} />
+    </View>
+  );
 }
 
-function BellTabIcon({ focused }: { focused: boolean }) {
+function BellTabIcon({ focused, color }: { focused: boolean; color: string }) {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   return (
-    <View className="relative items-center justify-center">
-      <Text className={focused ? 'text-xl' : 'text-xl opacity-50'}>🔔</Text>
-      {unreadCount > 0 && (
-        <View className="absolute -top-1 -right-2 bg-red-500 rounded-full min-w-[14px] h-3.5 items-center justify-center px-0.5">
-          <Text className="text-white text-[9px] font-bold leading-none">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Text>
-        </View>
-      )}
+    <View className="items-center justify-center mt-1">
+      <View className="relative">
+        <Bell color={color} size={24} strokeWidth={focused ? 2.5 : 2} opacity={focused ? 1 : 0.6} />
+        {unreadCount > 0 && (
+          <View className="absolute -top-1 -right-2 bg-error rounded-full min-w-[16px] h-4 items-center justify-center px-1 border-2 border-surface">
+            <Text className="text-white text-[9px] font-bold leading-none">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 export default function ProfessionalLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2563eb',
+        tabBarActiveTintColor: '#6366F1', // primary color
+        tabBarInactiveTintColor: isDark ? '#94A3B8' : '#64748B', // mutedText
         tabBarShowLabel: true,
-        tabBarStyle: { paddingBottom: 4, height: 60 },
+        tabBarStyle: {
+          backgroundColor: isDark ? '#1A1D29' : '#FFFFFF',
+          borderTopColor: isDark ? '#2D3548' : '#E2E8F0',
+          paddingBottom: 8,
+          height: 65,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon Icon={Home} focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="leads/available"
         options={{
           title: 'Leads',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📢" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon Icon={Megaphone} focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="projects/index"
         options={{
           title: 'Proyectos',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔨" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon Icon={Briefcase} focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="portfolio/index"
         options={{
           title: 'Portfolio',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🖼️" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon Icon={ImageIcon} focused={focused} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon Icon={User} focused={focused} color={color} />,
         }}
       />
     </Tabs>

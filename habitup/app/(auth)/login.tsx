@@ -1,9 +1,12 @@
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text } from 'react-native';
 import { Link } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { authService } from '@/services/auth.service';
+import { Screen, Input, Button } from '@/components/ui';
+import { Mail, Lock } from 'lucide-react-native';
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -27,60 +30,70 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 justify-center px-6 bg-white">
-      <Text className="text-3xl font-bold text-center text-brand mb-8">HabitUp</Text>
-      <Text className="text-xl font-semibold mb-6">Iniciar sesión</Text>
+    <Screen safeArea className="px-6 justify-center">
+      <View className="mb-10 mt-10">
+        <Text className="text-4xl font-extrabold text-primary mb-2">HabitUp</Text>
+        <Text className="text-2xl font-bold text-text mb-2">Bienvenido de nuevo</Text>
+        <Text className="text-muted-text text-base">Inicia sesión para continuar.</Text>
+      </View>
 
       <Controller
         control={control}
         name="email"
         render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 mb-1"
-            placeholder="Email"
+          <Input
+            label="Correo electrónico"
+            placeholder="tu@email.com"
             keyboardType="email-address"
             autoCapitalize="none"
             onChangeText={onChange}
             value={value}
+            error={errors.email?.message}
+            leftIcon={<Mail size={20} color="#94A3B8" />}
           />
         )}
       />
-      {errors.email && <Text className="text-red-500 text-sm mb-3">{errors.email.message}</Text>}
 
       <Controller
         control={control}
         name="password"
         render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 mb-1 mt-3"
-            placeholder="Contraseña"
+          <Input
+            label="Contraseña"
+            placeholder="••••••••"
             secureTextEntry
             onChangeText={onChange}
             value={value}
+            error={errors.password?.message}
+            leftIcon={<Lock size={20} color="#94A3B8" />}
           />
         )}
       />
-      {errors.password && <Text className="text-red-500 text-sm mb-3">{errors.password.message}</Text>}
-      {errors.root && <Text className="text-red-500 text-sm mb-3">{errors.root.message}</Text>}
+      
+      {errors.root && (
+        <Text className="text-error text-sm text-center mb-4 bg-error/10 p-2 rounded-lg overflow-hidden">
+          {errors.root.message}
+        </Text>
+      )}
 
-      <Link href="/(auth)/forgot-password" className="text-brand text-right mb-6">
-        ¿Olvidaste tu contraseña?
-      </Link>
-
-      <TouchableOpacity
-        onPress={handleSubmit(onSubmit)}
-        disabled={isSubmitting}
-        className="bg-brand py-4 rounded-xl items-center"
-      >
-        {isSubmitting
-          ? <ActivityIndicator color="white" />
-          : <Text className="text-white font-semibold text-base">Entrar</Text>}
-      </TouchableOpacity>
-
-      <View className="flex-row justify-center mt-6">
-        <Text className="text-gray-600">¿No tienes cuenta? </Text>
-        <Link href="/(auth)/register" className="text-brand font-semibold">Regístrate</Link>
+      <View className="items-end mb-8 mt-2">
+        <Link href="/(auth)/forgot-password" className="text-primary font-medium text-sm">
+          ¿Olvidaste tu contraseña?
+        </Link>
       </View>
-    </View>
+
+      <Button
+        label="Iniciar Sesión"
+        onPress={handleSubmit(onSubmit)}
+        isLoading={isSubmitting}
+        size="lg"
+        className="w-full shadow-sm shadow-primary/30"
+      />
+
+      <View className="flex-row justify-center mt-8">
+        <Text className="text-muted-text">¿No tienes cuenta? </Text>
+        <Link href="/(auth)/register" className="text-primary font-bold">Regístrate</Link>
+      </View>
+    </Screen>
   );
 }

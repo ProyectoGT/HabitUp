@@ -1,9 +1,13 @@
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { authService } from '@/services/auth.service';
+import { Screen, Input, Button } from '@/components/ui';
+import { Mail, Lock, User, Briefcase, CheckCircle2 } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Nombre demasiado corto'),
@@ -15,6 +19,9 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterScreen() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   const { control, handleSubmit, watch, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { user_type: 'cliente' },
@@ -32,93 +39,119 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="px-6 py-12">
-      <Text className="text-3xl font-bold text-center text-brand mb-8">HabitUp</Text>
-      <Text className="text-xl font-semibold mb-6">Crear cuenta</Text>
+    <Screen safeArea>
+      <ScrollView className="flex-1" contentContainerClassName="px-6 py-10" showsVerticalScrollIndicator={false}>
+        <View className="mb-8 mt-4">
+          <Text className="text-4xl font-extrabold text-primary mb-2">Crear cuenta</Text>
+          <Text className="text-muted-text text-base">Únete a HabitUp y comienza tu experiencia.</Text>
+        </View>
 
-      {/* Selector de rol */}
-      <View className="flex-row mb-6 gap-3">
-        {(['cliente', 'professional'] as const).map((type) => (
-          <Controller
-            key={type}
-            control={control}
-            name="user_type"
-            render={({ field: { onChange } }) => (
-              <TouchableOpacity
-                onPress={() => onChange(type)}
-                className={`flex-1 py-3 rounded-xl border items-center ${
-                  userType === type ? 'bg-brand border-brand' : 'bg-white border-gray-300'
-                }`}
-              >
-                <Text className={userType === type ? 'text-white font-semibold' : 'text-gray-600'}>
-                  {type === 'cliente' ? 'Cliente' : 'Profesional'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        ))}
-      </View>
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-text mb-3">¿Qué estás buscando?</Text>
+          <View className="flex-row gap-3">
+            {(['cliente', 'professional'] as const).map((type) => {
+              const isSelected = userType === type;
+              return (
+                <Controller
+                  key={type}
+                  control={control}
+                  name="user_type"
+                  render={({ field: { onChange } }) => (
+                    <TouchableOpacity
+                      onPress={() => onChange(type)}
+                      activeOpacity={0.7}
+                      className={`flex-1 p-4 rounded-2xl border-2 items-center justify-center ${
+                        isSelected ? 'border-primary bg-primary/10' : 'border-border bg-surface'
+                      }`}
+                    >
+                      {type === 'cliente' ? (
+                        <User color={isSelected ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} size={28} className="mb-2" />
+                      ) : (
+                        <Briefcase color={isSelected ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} size={28} className="mb-2" />
+                      )}
+                      <Text className={`font-semibold ${isSelected ? 'text-primary' : 'text-muted-text'}`}>
+                        {type === 'cliente' ? 'Soy Cliente' : 'Soy Profesional'}
+                      </Text>
+                      {isSelected && (
+                        <View className="absolute top-2 right-2">
+                          <CheckCircle2 color="#6366F1" size={16} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              );
+            })}
+          </View>
+        </View>
 
-      <Controller
-        control={control}
-        name="full_name"
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 mb-1"
-            placeholder="Nombre completo"
-            onChangeText={onChange}
-            value={value}
-          />
+        <Controller
+          control={control}
+          name="full_name"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Nombre completo"
+              placeholder="Juan Pérez"
+              onChangeText={onChange}
+              value={value}
+              error={errors.full_name?.message}
+              leftIcon={<User size={20} color="#94A3B8" />}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Correo electrónico"
+              placeholder="tu@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onChangeText={onChange}
+              value={value}
+              error={errors.email?.message}
+              leftIcon={<Mail size={20} color="#94A3B8" />}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Contraseña"
+              placeholder="••••••••"
+              secureTextEntry
+              onChangeText={onChange}
+              value={value}
+              error={errors.password?.message}
+              leftIcon={<Lock size={20} color="#94A3B8" />}
+            />
+          )}
+        />
+
+        {errors.root && (
+          <Text className="text-error text-sm text-center my-2 bg-error/10 p-2 rounded-lg overflow-hidden">
+            {errors.root.message}
+          </Text>
         )}
-      />
-      {errors.full_name && <Text className="text-red-500 text-sm mb-3">{errors.full_name.message}</Text>}
 
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 mb-1 mt-3"
-            placeholder="Email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            onChangeText={onChange}
-            value={value}
-          />
-        )}
-      />
-      {errors.email && <Text className="text-red-500 text-sm mb-3">{errors.email.message}</Text>}
+        <Button
+          label="Crear cuenta"
+          onPress={handleSubmit(onSubmit)}
+          isLoading={isSubmitting}
+          size="lg"
+          className="w-full mt-6 shadow-sm shadow-primary/30"
+        />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            className="border border-gray-300 rounded-lg px-4 py-3 mb-1 mt-3"
-            placeholder="Contraseña"
-            secureTextEntry
-            onChangeText={onChange}
-            value={value}
-          />
-        )}
-      />
-      {errors.password && <Text className="text-red-500 text-sm mb-3">{errors.password.message}</Text>}
-      {errors.root && <Text className="text-red-500 text-sm mb-3">{errors.root.message}</Text>}
-
-      <TouchableOpacity
-        onPress={handleSubmit(onSubmit)}
-        disabled={isSubmitting}
-        className="bg-brand py-4 rounded-xl items-center mt-6"
-      >
-        {isSubmitting
-          ? <ActivityIndicator color="white" />
-          : <Text className="text-white font-semibold text-base">Crear cuenta</Text>}
-      </TouchableOpacity>
-
-      <View className="flex-row justify-center mt-6">
-        <Text className="text-gray-600">¿Ya tienes cuenta? </Text>
-        <Link href="/(auth)/login" className="text-brand font-semibold">Iniciar sesión</Link>
-      </View>
-    </ScrollView>
+        <View className="flex-row justify-center mt-8 mb-4">
+          <Text className="text-muted-text">¿Ya tienes cuenta? </Text>
+          <Link href="/(auth)/login" className="text-primary font-bold">Iniciar sesión</Link>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }

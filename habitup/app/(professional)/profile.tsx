@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +11,9 @@ import { professionalsService } from '@/services/professionals.service';
 import { paymentsService } from '@/services/payments.service';
 import { supabase } from '@/services/supabase';
 import type { Category } from '@/types/models';
+import { Screen, Card, Button, Input, Badge } from '@/components/ui';
+import { Save, LogOut, CheckCircle2, Link as LinkIcon, Instagram, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Nombre demasiado corto'),
@@ -30,6 +33,9 @@ export default function ProfessionalProfileScreen() {
   const { user, professionalProfile, reset, setProfessionalProfile } = useAuthStore();
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     professionalsService.getCategories().then(setAllCategories);
@@ -111,154 +117,208 @@ export default function ProfessionalProfileScreen() {
     );
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-6 pt-14 pb-10">
-      <Text className="text-2xl font-bold text-gray-900 mb-6">Mi perfil profesional</Text>
+    <Screen safeArea={false} className="flex-1">
+      <View className="bg-surface px-6 pt-16 pb-6 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-3xl z-10 flex-row items-center justify-between">
+        <Text className="text-2xl font-extrabold text-text leading-tight">Mi perfil profesional</Text>
+      </View>
 
-      {/* Datos personales */}
-      <SectionCard title="Datos personales">
-        <Field label="Nombre completo" error={errors.full_name?.message}>
+      <ScrollView className="flex-1" contentContainerClassName="px-6 pt-6 pb-24" showsVerticalScrollIndicator={false}>
+
+        {/* Datos personales */}
+        <SectionCard title="Datos personales" icon={<User size={20} color="#6366F1" />}>
           <Controller control={control} name="full_name" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" onChangeText={onChange} value={value} />
+            <Input 
+              label="Nombre completo" 
+              onChangeText={onChange} 
+              value={value} 
+              error={errors.full_name?.message} 
+              className="mb-4"
+              leftIcon={<User size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+            />
           )} />
-        </Field>
-        <Field label="Teléfono" error={errors.phone?.message}>
           <Controller control={control} name="phone" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" keyboardType="phone-pad" onChangeText={onChange} value={value ?? ''} />
+            <Input 
+              label="Teléfono" 
+              keyboardType="phone-pad" 
+              onChangeText={onChange} 
+              value={value ?? ''} 
+              error={errors.phone?.message}
+              leftIcon={<Phone size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+            />
           )} />
-        </Field>
-      </SectionCard>
+        </SectionCard>
 
-      {/* Descripción */}
-      <SectionCard title="Descripción del negocio">
-        <Field label="Descripción *" error={errors.description?.message}>
+        {/* Descripción */}
+        <SectionCard title="Descripción del negocio" icon={<Briefcase size={20} color="#6366F1" />}>
           <Controller control={control} name="description" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" multiline numberOfLines={4} textAlignVertical="top" onChangeText={onChange} value={value} />
+            <Input 
+              label="Descripción *" 
+              multiline 
+              numberOfLines={4} 
+              onChangeText={onChange} 
+              value={value} 
+              error={errors.description?.message} 
+            />
           )} />
-        </Field>
-      </SectionCard>
+        </SectionCard>
 
-      {/* Localización */}
-      <SectionCard title="Localización">
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Field label="Ciudad *" error={errors.location_city?.message}>
+        {/* Localización */}
+        <SectionCard title="Localización" icon={<MapPin size={20} color="#6366F1" />}>
+          <View className="flex-row gap-4 mb-4">
+            <View className="flex-1">
               <Controller control={control} name="location_city" render={({ field: { onChange, value } }) => (
-                <TextInput className="border border-gray-200 rounded-lg px-4 py-3" onChangeText={onChange} value={value} />
+                <Input 
+                  label="Ciudad *" 
+                  onChangeText={onChange} 
+                  value={value} 
+                  error={errors.location_city?.message} 
+                  leftIcon={<MapPin size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+                />
               )} />
-            </Field>
-          </View>
-          <View className="flex-1">
-            <Field label="Radio (km) *" error={errors.service_radius_km?.message}>
+            </View>
+            <View className="flex-1">
               <Controller control={control} name="service_radius_km" render={({ field: { onChange, value } }) => (
-                <TextInput className="border border-gray-200 rounded-lg px-4 py-3" keyboardType="numeric" onChangeText={onChange} value={String(value ?? '')} />
+                <Input 
+                  label="Radio (km) *" 
+                  keyboardType="numeric" 
+                  onChangeText={onChange} 
+                  value={String(value ?? '')} 
+                  error={errors.service_radius_km?.message} 
+                />
               )} />
-            </Field>
-          </View>
-        </View>
-        <Field label="Comunidad autónoma *" error={errors.location_region?.message}>
-          <Controller control={control} name="location_region" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" onChangeText={onChange} value={value} />
-          )} />
-        </Field>
-      </SectionCard>
-
-      {/* Especialidades */}
-      <SectionCard title="Especialidades">
-        <View className="flex-row flex-wrap gap-2">
-          {allCategories.map((cat) => {
-            const sel = selectedCategoryIds.includes(cat.id);
-            return (
-              <TouchableOpacity key={cat.id} onPress={() => toggleCategory(cat.id)}
-                className={`px-4 py-2 rounded-full border ${sel ? 'bg-brand border-brand' : 'bg-white border-gray-300'}`}
-              >
-                <Text className={sel ? 'text-white font-medium' : 'text-gray-700'}>{cat.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </SectionCard>
-
-      {/* Redes sociales */}
-      <SectionCard title="Web y redes sociales">
-        <Field label="Página web" error={errors.website_url?.message}>
-          <Controller control={control} name="website_url" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" placeholder="https://tuweb.com" autoCapitalize="none" keyboardType="url" onChangeText={onChange} value={value ?? ''} />
-          )} />
-        </Field>
-        <Field label="Instagram" error={errors.instagram_url?.message}>
-          <Controller control={control} name="instagram_url" render={({ field: { onChange, value } }) => (
-            <TextInput className="border border-gray-200 rounded-lg px-4 py-3" placeholder="https://instagram.com/tu_perfil" autoCapitalize="none" keyboardType="url" onChangeText={onChange} value={value ?? ''} />
-          )} />
-        </Field>
-      </SectionCard>
-
-      {errors.root && <Text className="text-red-500 text-sm mb-3">{errors.root.message}</Text>}
-
-      <TouchableOpacity
-        onPress={handleSubmit(onSave)}
-        disabled={isSubmitting}
-        className="bg-brand py-4 rounded-xl items-center mb-4"
-      >
-        {isSubmitting
-          ? <ActivityIndicator color="white" />
-          : <Text className="text-white font-semibold text-base">Guardar cambios</Text>}
-      </TouchableOpacity>
-
-      {/* Stripe Connect */}
-      <SectionCard title="Cuenta de cobros">
-        {professionalProfile?.stripe_account_enabled ? (
-          <View className="flex-row items-center gap-3 bg-green-50 p-3 rounded-xl">
-            <Text className="text-2xl">✅</Text>
-            <View>
-              <Text className="font-semibold text-green-700">Cuenta verificada</Text>
-              <Text className="text-xs text-green-600">Recibirás el 90% de cada pago automáticamente</Text>
             </View>
           </View>
-        ) : (
-          <>
-            <Text className="text-sm text-gray-500 mb-3">
-              Conecta tu cuenta bancaria para recibir pagos a través de HabitUp. El proceso tarda menos de 5 minutos.
-            </Text>
-            <TouchableOpacity
-              onPress={onConnectStripe}
-              disabled={connectLoading}
-              className="bg-[#635BFF] py-3 rounded-xl items-center flex-row justify-center gap-2"
-            >
-              {connectLoading
-                ? <ActivityIndicator color="white" />
-                : <>
-                    <Text className="text-white text-lg">⚡</Text>
-                    <Text className="text-white font-semibold">
-                      {professionalProfile?.stripe_account_id ? 'Continuar verificación' : 'Conectar con Stripe'}
-                    </Text>
-                  </>}
-            </TouchableOpacity>
-          </>
+          <Controller control={control} name="location_region" render={({ field: { onChange, value } }) => (
+            <Input 
+              label="Comunidad autónoma *" 
+              onChangeText={onChange} 
+              value={value} 
+              error={errors.location_region?.message} 
+              leftIcon={<Map size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+            />
+          )} />
+        </SectionCard>
+
+        {/* Especialidades */}
+        <SectionCard title="Especialidades" icon={<CheckCircle2 size={20} color="#6366F1" />}>
+          <View className="flex-row flex-wrap gap-2">
+            {allCategories.map((cat) => {
+              const sel = selectedCategoryIds.includes(cat.id);
+              return (
+                <TouchableOpacity 
+                  key={cat.id} 
+                  onPress={() => toggleCategory(cat.id)}
+                  activeOpacity={0.7}
+                  className={`px-4 py-2 rounded-full border ${
+                    sel 
+                      ? 'bg-primary border-primary' 
+                      : 'bg-surface border-border'
+                  }`}
+                >
+                  <Text className={`font-medium ${sel ? 'text-white' : 'text-text'}`}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </SectionCard>
+
+        {/* Redes sociales */}
+        <SectionCard title="Web y redes sociales" icon={<LinkIcon size={20} color="#6366F1" />}>
+          <Controller control={control} name="website_url" render={({ field: { onChange, value } }) => (
+            <Input 
+              label="Página web" 
+              placeholder="https://tuweb.com" 
+              autoCapitalize="none" 
+              keyboardType="url" 
+              onChangeText={onChange} 
+              value={value ?? ''} 
+              error={errors.website_url?.message} 
+              className="mb-4"
+              leftIcon={<Globe size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+            />
+          )} />
+          <Controller control={control} name="instagram_url" render={({ field: { onChange, value } }) => (
+            <Input 
+              label="Instagram" 
+              placeholder="https://instagram.com/tu_perfil" 
+              autoCapitalize="none" 
+              keyboardType="url" 
+              onChangeText={onChange} 
+              value={value ?? ''} 
+              error={errors.instagram_url?.message} 
+              leftIcon={<Instagram size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+            />
+          )} />
+        </SectionCard>
+
+        {errors.root && (
+          <Text className="text-error text-sm text-center mb-4 bg-error/10 p-3 rounded-xl">
+            {errors.root.message}
+          </Text>
         )}
-      </SectionCard>
 
-      <TouchableOpacity onPress={onSignOut} className="border border-red-400 py-3 rounded-xl items-center mt-2">
-        <Text className="text-red-500 font-semibold">Cerrar sesión</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <Button
+          label="Guardar cambios"
+          onPress={handleSubmit(onSave)}
+          isLoading={isSubmitting}
+          leftIcon={<Save size={20} color="#FFF" />}
+          size="lg"
+          className="mb-6 shadow-sm shadow-primary/30"
+        />
+
+        {/* Stripe Connect */}
+        <SectionCard title="Cuenta de cobros" icon={<Zap size={20} color="#6366F1" />}>
+          {professionalProfile?.stripe_account_enabled ? (
+            <View className="flex-row items-center gap-4 bg-success/10 p-4 rounded-xl border border-success/20">
+              <View className="w-12 h-12 bg-success/20 rounded-full items-center justify-center">
+                <CheckCircle2 size={24} color="#10B981" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-bold text-success text-base mb-0.5">Cuenta verificada</Text>
+                <Text className="text-sm font-medium text-success/80 leading-tight">
+                  Recibirás el 90% de cada pago de forma automática
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <Text className="text-sm font-medium text-muted-text mb-4 leading-relaxed">
+                Conecta tu cuenta bancaria para recibir pagos a través de HabitUp. El proceso es seguro y tarda menos de 5 minutos.
+              </Text>
+              <Button
+                label={professionalProfile?.stripe_account_id ? 'Continuar verificación' : 'Conectar con Stripe'}
+                onPress={onConnectStripe}
+                isLoading={connectLoading}
+                leftIcon={<Zap size={20} color="#FFF" />}
+                style={{ backgroundColor: '#635BFF' }}
+              />
+            </>
+          )}
+        </SectionCard>
+
+        <Button
+          label="Cerrar sesión"
+          variant="outline"
+          onPress={onSignOut}
+          leftIcon={<LogOut size={20} color="#EF4444" />}
+          className="mt-4 border-error/50"
+          textClassName="text-error"
+        />
+      </ScrollView>
+    </Screen>
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <View className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-      <Text className="text-base font-semibold text-gray-900 mb-4">{title}</Text>
+    <Card variant="elevated" className="p-5 mb-6">
+      <View className="flex-row items-center mb-5 border-b border-border/50 pb-3">
+        {icon && <View className="mr-2">{icon}</View>}
+        <Text className="text-lg font-bold text-text">{title}</Text>
+      </View>
       {children}
-    </View>
-  );
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <View className="mb-4">
-      <Text className="text-sm font-medium text-gray-700 mb-1">{label}</Text>
-      {children}
-      {error ? <Text className="text-red-500 text-xs mt-1">{error}</Text> : null}
-    </View>
+    </Card>
   );
 }

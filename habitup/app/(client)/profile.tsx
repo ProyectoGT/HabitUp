@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +7,9 @@ import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
 import { supabase } from '@/services/supabase';
+import { Screen, Card, Input, Button, Avatar } from '@/components/ui';
+import { User, Phone, AlignLeft, Mail, LogOut, ChevronRight } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Nombre demasiado corto'),
@@ -18,6 +22,8 @@ type FormData = z.infer<typeof schema>;
 export default function ClientProfileScreen() {
   const router = useRouter();
   const { user, reset } = useAuthStore();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, setError } =
     useForm<FormData>({
@@ -43,7 +49,7 @@ export default function ClientProfileScreen() {
   };
 
   const onSignOut = async () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro?', [
+    Alert.alert('Cerrar sesión', '¿Estás seguro que deseas salir?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Salir', style: 'destructive', onPress: async () => {
@@ -56,92 +62,116 @@ export default function ClientProfileScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="px-6 pt-14 pb-10">
-      <Text className="text-2xl font-bold text-gray-900 mb-6">Mi perfil</Text>
+    <Screen safeArea={false} className="flex-1">
+      <View className="bg-primary px-6 pt-16 pb-20 rounded-b-[40px] shadow-sm shadow-primary/30 z-10 items-center">
+        <Avatar 
+          url={user?.avatar_url} 
+          fallback={user?.full_name ?? '?'} 
+          size="xl" 
+          className="border-4 border-white/20 mb-3"
+        />
+        <Text className="text-2xl font-extrabold text-white mb-1">
+          {user?.full_name}
+        </Text>
+        <Text className="text-white/80 font-medium">Cliente</Text>
+      </View>
 
-      <View className="bg-white rounded-2xl p-5 shadow-sm mb-6">
-        <Field label="Nombre completo" error={errors.full_name?.message}>
+      <ScrollView contentContainerClassName="px-6 pt-6 pb-12 -mt-10 z-20" showsVerticalScrollIndicator={false}>
+        <Card variant="elevated" className="mb-6 p-5">
+          <Text className="text-lg font-bold text-text mb-4">Datos personales</Text>
+          
           <Controller
             control={control}
             name="full_name"
             render={({ field: { onChange, value } }) => (
-              <TextInput
-                className="border border-gray-200 rounded-lg px-4 py-3"
-                onChangeText={onChange}
+              <Input
+                label="Nombre completo"
                 value={value}
+                onChangeText={onChange}
+                error={errors.full_name?.message}
+                leftIcon={<User size={20} color="#94A3B8" />}
               />
             )}
           />
-        </Field>
 
-        <Field label="Teléfono" error={errors.phone?.message}>
           <Controller
             control={control}
             name="phone"
             render={({ field: { onChange, value } }) => (
-              <TextInput
-                className="border border-gray-200 rounded-lg px-4 py-3"
-                keyboardType="phone-pad"
-                onChangeText={onChange}
+              <Input
+                label="Teléfono"
                 value={value ?? ''}
+                onChangeText={onChange}
+                keyboardType="phone-pad"
+                error={errors.phone?.message}
+                leftIcon={<Phone size={20} color="#94A3B8" />}
               />
             )}
           />
-        </Field>
 
-        <Field label="Sobre mí" error={errors.bio?.message}>
           <Controller
             control={control}
             name="bio"
             render={({ field: { onChange, value } }) => (
-              <TextInput
-                className="border border-gray-200 rounded-lg px-4 py-3"
+              <Input
+                label="Sobre mí"
+                value={value ?? ''}
+                onChangeText={onChange}
                 multiline
                 numberOfLines={3}
-                textAlignVertical="top"
-                onChangeText={onChange}
-                value={value ?? ''}
+                error={errors.bio?.message}
+                leftIcon={<AlignLeft size={20} color="#94A3B8" />}
               />
             )}
           />
-        </Field>
 
-        {errors.root && <Text className="text-red-500 text-sm mb-2">{errors.root.message}</Text>}
+          {errors.root && (
+            <Text className="text-error text-sm mb-4 bg-error/10 p-2 rounded-lg">
+              {errors.root.message}
+            </Text>
+          )}
 
-        {isDirty && (
-          <TouchableOpacity
-            onPress={handleSubmit(onSave)}
-            disabled={isSubmitting}
-            className="bg-brand py-3 rounded-xl items-center mt-2"
+          {isDirty && (
+            <Button
+              label="Guardar cambios"
+              onPress={handleSubmit(onSave)}
+              isLoading={isSubmitting}
+              className="mt-2"
+            />
+          )}
+        </Card>
+
+        <Card variant="outlined" className="mb-6 p-0 overflow-hidden">
+          <View className="p-4 border-b border-border/50 flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-3">
+                <Mail size={20} color="#6366F1" />
+              </View>
+              <View>
+                <Text className="text-sm text-muted-text font-medium">Email de la cuenta</Text>
+                <Text className="text-base text-text font-bold">{user?.email}</Text>
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            className="p-4 flex-row items-center justify-between active:bg-surface-active"
+            onPress={() => Alert.alert('Info', 'Función próximamente')}
           >
-            {isSubmitting
-              ? <ActivityIndicator color="white" />
-              : <Text className="text-white font-semibold">Guardar cambios</Text>}
+            <Text className="text-text font-semibold">Cambiar contraseña</Text>
+            <ChevronRight size={20} color={isDark ? '#94A3B8' : '#64748B'} />
           </TouchableOpacity>
-        )}
-      </View>
+        </Card>
 
-      <View className="bg-white rounded-2xl p-5 shadow-sm">
-        <Text className="text-gray-500 text-sm mb-1">Email</Text>
-        <Text className="text-gray-900 font-medium mb-4">{user?.email}</Text>
-
-        <TouchableOpacity
+        <Button
+          label="Cerrar sesión"
+          variant="outline"
           onPress={onSignOut}
-          className="border border-red-400 py-3 rounded-xl items-center"
-        >
-          <Text className="text-red-500 font-semibold">Cerrar sesión</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
-  );
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <View className="mb-4">
-      <Text className="text-sm font-medium text-gray-700 mb-1">{label}</Text>
-      {children}
-      {error ? <Text className="text-red-500 text-xs mt-1">{error}</Text> : null}
-    </View>
+          leftIcon={<LogOut size={20} color="#EF4444" />}
+          className="border-error/30 bg-error/5"
+          textClassName="text-error"
+        />
+      </ScrollView>
+    </Screen>
   );
 }

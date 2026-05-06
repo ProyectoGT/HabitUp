@@ -1,19 +1,23 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text } from 'react-native';
 import { formatRelativeTime, formatCurrency } from '@/utils/formatters';
 import type { Lead } from '@/types/models';
+import { Card, Badge } from '@/components/ui';
+import { MapPin, Clock, CircleDollarSign } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
-const STATUS_LABEL: Record<string, { label: string; style: string }> = {
-  activo:           { label: 'Activo',         style: 'bg-green-100 text-green-700' },
-  en_negociacion:   { label: 'En negociación', style: 'bg-yellow-100 text-yellow-700' },
-  asignado:         { label: 'Asignado',       style: 'bg-blue-100 text-brand' },
-  cerrado:          { label: 'Cerrado',        style: 'bg-gray-100 text-gray-500' },
-  cancelado:        { label: 'Cancelado',      style: 'bg-red-100 text-red-500' },
+const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'default' }> = {
+  activo:           { label: 'Activo',         variant: 'success' },
+  en_negociacion:   { label: 'En negociación', variant: 'warning' },
+  asignado:         { label: 'Asignado',       variant: 'info' },
+  cerrado:          { label: 'Cerrado',        variant: 'default' },
+  cancelado:        { label: 'Cancelado',      variant: 'error' },
 };
 
-const URGENCY_LABEL: Record<string, string> = {
-  alta: '🔴 Urgente',
-  media: '🟡 Normal',
-  baja: '🟢 Sin prisa',
+const URGENCY_LABEL: Record<string, { text: string; color: string }> = {
+  alta:  { text: 'Urgente', color: '#EF4444' }, // error
+  media: { text: 'Normal', color: '#F59E0B' },  // warning
+  baja:  { text: 'Sin prisa', color: '#10B981' }, // success
 };
 
 interface Props {
@@ -23,40 +27,54 @@ interface Props {
 }
 
 export function LeadCard({ lead, onPress }: Props) {
-  const status = STATUS_LABEL[lead.status] ?? { label: lead.status, style: 'bg-gray-100 text-gray-500' };
+  const status = STATUS_LABEL[lead.status] ?? { label: lead.status, variant: 'default' };
+  const urgency = URGENCY_LABEL[lead.urgency] ?? { text: lead.urgency, color: '#64748B' };
+  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100"
-    >
-      <View className="flex-row items-start justify-between mb-2">
-        <Text className="text-base font-semibold text-gray-900 flex-1 mr-2" numberOfLines={1}>
+    <Card onPress={onPress} className="mb-4">
+      <View className="flex-row items-start justify-between mb-3">
+        <Text className="text-lg font-bold text-text flex-1 mr-3 leading-tight" numberOfLines={2}>
           {lead.title}
         </Text>
-        <Text className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.style}`}>
-          {status.label}
-        </Text>
+        <Badge label={status.label} variant={status.variant} />
       </View>
 
-      <Text className="text-sm text-gray-600 mb-3" numberOfLines={2}>
+      <Text className="text-sm text-muted-text mb-4 leading-relaxed" numberOfLines={2}>
         {lead.description}
       </Text>
 
-      <View className="flex-row items-center gap-3 flex-wrap">
+      <View className="flex-row flex-wrap gap-y-2 gap-x-4 items-center mt-auto border-t border-border/50 pt-3">
         {lead.location_city && (
-          <Text className="text-xs text-gray-500">📍 {lead.location_city}</Text>
+          <View className="flex-row items-center">
+            <MapPin size={14} color={isDark ? '#94A3B8' : '#64748B'} />
+            <Text className="text-xs font-medium text-muted-text ml-1">{lead.location_city}</Text>
+          </View>
         )}
+        
         {(lead.budget_min || lead.budget_max) && (
-          <Text className="text-xs text-gray-500">
-            💰 {lead.budget_min ? formatCurrency(lead.budget_min) : ''}
-            {lead.budget_min && lead.budget_max ? ' – ' : ''}
-            {lead.budget_max ? formatCurrency(lead.budget_max) : ''}
-          </Text>
+          <View className="flex-row items-center">
+            <CircleDollarSign size={14} color={isDark ? '#94A3B8' : '#64748B'} />
+            <Text className="text-xs font-medium text-muted-text ml-1">
+              {lead.budget_min ? formatCurrency(lead.budget_min) : ''}
+              {lead.budget_min && lead.budget_max ? ' – ' : ''}
+              {lead.budget_max ? formatCurrency(lead.budget_max) : ''}
+            </Text>
+          </View>
         )}
-        <Text className="text-xs text-gray-500">{URGENCY_LABEL[lead.urgency]}</Text>
-        <Text className="text-xs text-gray-400 ml-auto">{formatRelativeTime(lead.created_at)}</Text>
+
+        <View className="flex-row items-center">
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: urgency.color }} />
+          <Text className="text-xs font-medium text-muted-text ml-1.5">{urgency.text}</Text>
+        </View>
+
+        <View className="flex-row items-center ml-auto">
+          <Clock size={12} color={isDark ? '#94A3B8' : '#64748B'} />
+          <Text className="text-[11px] text-muted-text ml-1">{formatRelativeTime(lead.created_at)}</Text>
+        </View>
       </View>
-    </TouchableOpacity>
+    </Card>
   );
 }
