@@ -8,6 +8,7 @@ export interface ButtonProps extends TouchableOpacityProps {
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  textClassName?: string;
 }
 
 export const Button = ({
@@ -18,6 +19,7 @@ export const Button = ({
   leftIcon,
   rightIcon,
   className,
+  textClassName,
   disabled,
   ...rest
 }: ButtonProps) => {
@@ -76,7 +78,7 @@ export const Button = ({
         <>{leftIcon}</>
       ) : null}
       
-      <Text className={`font-semibold text-center ${getTextStyles()} ${leftIcon ? 'ml-2' : ''} ${rightIcon ? 'mr-2' : ''}`}>
+      <Text className={`font-semibold text-center ${getTextStyles()} ${leftIcon ? 'ml-2' : ''} ${rightIcon ? 'mr-2' : ''} ${textClassName || ''}`}>
         {label}
       </Text>
       

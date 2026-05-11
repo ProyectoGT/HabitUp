@@ -57,8 +57,11 @@ export default function ClientLeadDetailScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Aceptar', onPress: async () => {
-            await quotesService.accept(quote.id);
+            const project = await quotesService.accept(quote.id);
             await load();
+            if (project?.id) {
+              router.replace(`/(client)/projects/${project.id}`);
+            }
           },
         },
       ],
@@ -223,7 +226,7 @@ function QuoteCard({
 
       {quote.description && (
         <Text className="text-sm text-muted-text mb-4 leading-relaxed bg-surface p-3 rounded-xl border border-border/30" numberOfLines={4}>
-          "{quote.description}"
+          {quote.description}
         </Text>
       )}
 

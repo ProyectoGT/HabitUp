@@ -11,6 +11,7 @@ import { useColorScheme } from 'nativewind';
 const STATUS_STYLE: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
   pendiente:   { label: 'Pendiente',    variant: 'warning' },
   en_curso:    { label: 'En curso',     variant: 'info' },
+  pendiente_finalizacion: { label: 'Pendiente de confirmación', variant: 'warning' },
   pausado:     { label: 'Pausado',      variant: 'default' },
   completado:  { label: 'Completado',   variant: 'success' },
   cancelado:   { label: 'Cancelado',    variant: 'error' },

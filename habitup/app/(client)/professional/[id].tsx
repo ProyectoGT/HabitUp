@@ -56,8 +56,8 @@ export default function ProfessionalDetailScreen() {
 
           <View className="flex-row items-center mb-6">
             <Avatar 
-              url={profile.avatar_url} 
-              fallback={profile.company_name ?? 'P'} 
+              url={profile.users?.avatar_url ?? null}
+              fallback={profile.company_name ?? profile.users?.full_name ?? 'P'}
               size="xl" 
             />
             <View className="flex-1 ml-4">

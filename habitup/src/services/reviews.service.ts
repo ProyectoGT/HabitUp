@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { Review } from '@/types/models';
 
 export interface CreateReviewParams {
@@ -45,6 +46,11 @@ export const reviewsService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('review_created', {
+      project_id: params.project_id,
+      professional_id: params.professional_id,
+      rating: params.rating,
+    });
     return data as Review;
   },
 };

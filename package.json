@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "dev": "cd habitup && expo start",
+    "start": "cd habitup && expo start",
+    "ios": "cd habitup && expo start --ios",
+    "android": "cd habitup && expo start --android",
+    "web": "cd habitup && expo start --web",
+    "typecheck": "cd habitup && tsc --noEmit",
+    "lint": "cd habitup && expo lint",
+    "test": "cd habitup && npm run test"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

@@ -34,6 +34,7 @@ type ReviewForm = z.infer<typeof reviewSchema>;
 const STATUS_CONFIG: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
   pendiente:  { label: 'Pendiente de inicio',  variant: 'warning' },
   en_curso:   { label: 'En curso',              variant: 'info' },
+  pendiente_finalizacion: { label: 'Pendiente de confirmación', variant: 'warning' },
   pausado:    { label: 'Pausado',               variant: 'default' },
   completado: { label: 'Completado',            variant: 'success' },
   cancelado:  { label: 'Cancelado',             variant: 'error' },
@@ -118,6 +119,27 @@ export default function ClientProjectDetailScreen() {
     }
   };
 
+  const onConfirmCompletion = () => {
+    Alert.alert(
+      'Confirmar finalización',
+      '¿El trabajo está terminado y todo está correcto?',
+      [
+        { text: 'Todavía no', style: 'cancel' },
+        {
+          text: 'Sí, confirmar',
+          onPress: async () => {
+            try {
+              await projectsService.updateStatus(id, PROJECT_STATUS.COMPLETED);
+              await load();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Error al confirmar');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (isLoading) return (
     <Screen safeArea className="items-center justify-center">
       <ActivityIndicator color="#6366F1" size="large" />
@@ -134,6 +156,7 @@ export default function ClientProjectDetailScreen() {
   const recipientId = project.professional?.user_id ?? '';
   const statusCfg = STATUS_CONFIG[project.status] ?? { label: project.status, variant: 'default' };
   const isCompleted = project.status === PROJECT_STATUS.COMPLETED;
+  const isPendingCompletion = project.status === PROJECT_STATUS.PENDING_COMPLETION;
 
   return (
     <Screen safeArea={false} className="flex-1">
@@ -190,6 +213,19 @@ export default function ClientProjectDetailScreen() {
           </Section>
 
           {/* Reseña */}
+          {isPendingCompletion && (
+            <Section title="Finalización">
+              <Text className="text-sm text-muted-text leading-relaxed mb-4">
+                El profesional ha marcado el trabajo como finalizado. Confirma solo si el proyecto está terminado.
+              </Text>
+              <Button
+                label="Confirmar finalización"
+                onPress={onConfirmCompletion}
+                leftIcon={<CheckCircle2 size={20} color="#FFF" />}
+              />
+            </Section>
+          )}
+
           {isCompleted && (
             <Section title="Reseña">
               {review ? (
@@ -392,4 +428,3 @@ function ReviewSummary({ review }: { review: Review }) {
     </View>
   );
 }
-

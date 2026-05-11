@@ -9,7 +9,7 @@ import { USER_TYPES } from '@/utils/constants';
 import { ENV } from '@/config/env';
 
 // Stripe no soporta web — se carga solo en nativo
-const StripeWrapper =
+const NativeStripeWrapper =
   Platform.OS !== 'web'
     ? require('@stripe/stripe-react-native').StripeProvider
     : ({ children }: { children: React.ReactNode }) => <>{children}</>;
@@ -28,6 +28,11 @@ export default function RootLayout() {
     const inOnboarding = segs[0] === '(professional)' && segs[1] === 'onboarding';
 
     if (!session && !inAuthGroup) {
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    if (session && !user && !inAuthGroup) {
       router.replace('/(auth)/login');
       return;
     }
@@ -56,7 +61,12 @@ export default function RootLayout() {
     }
   }, [session, user, professionalProfile, isLoading]);
 
-  const stripeProps = Platform.OS !== 'web'
+  const canUseStripe = Platform.OS !== 'web' && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
+  const StripeWrapper = canUseStripe
+    ? NativeStripeWrapper
+    : ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
+  const stripeProps = canUseStripe
     ? {
         publishableKey: ENV.STRIPE_PUBLISHABLE_KEY,
         urlScheme: 'habitup',

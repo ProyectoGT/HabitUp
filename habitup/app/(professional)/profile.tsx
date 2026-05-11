@@ -12,7 +12,7 @@ import { paymentsService } from '@/services/payments.service';
 import { supabase } from '@/services/supabase';
 import type { Category } from '@/types/models';
 import { Screen, Card, Button, Input, Badge } from '@/components/ui';
-import { Save, LogOut, CheckCircle2, Link as LinkIcon, Instagram, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
+import { Save, LogOut, CheckCircle2, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
@@ -248,7 +248,7 @@ export default function ProfessionalProfileScreen() {
               onChangeText={onChange} 
               value={value ?? ''} 
               error={errors.instagram_url?.message} 
-              leftIcon={<Instagram size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+              leftIcon={<Camera size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
             />
           )} />
         </SectionCard>

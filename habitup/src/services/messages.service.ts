@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { Message } from '@/types/models';
 
 export const messagesService = {
@@ -42,6 +43,7 @@ export const messagesService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('message_sent', { project_id: projectId, message_type: messageType });
     return data as Message;
   },
 

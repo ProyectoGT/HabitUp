@@ -36,9 +36,14 @@ export const projectsService = {
   },
 
   async updateStatus(id: string, status: ProjectStatus): Promise<void> {
+    const updates: Record<string, string> = { status };
+    if (status === PROJECT_STATUS.COMPLETED) {
+      updates.actual_end_date = new Date().toISOString().slice(0, 10);
+    }
+
     const { error } = await supabase
       .from('projects')
-      .update({ status })
+      .update(updates)
       .eq('id', id);
     if (error) throw error;
   },

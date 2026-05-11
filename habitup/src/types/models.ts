@@ -31,6 +31,10 @@ export interface User {
 export interface ProfessionalProfile {
   id: string;
   user_id: string;
+  users?: {
+    full_name: string;
+    avatar_url: string | null;
+  };
   company_name: string | null;
   company_type: 'autonomo' | 'empresa' | null;
   nif_cif: string | null;

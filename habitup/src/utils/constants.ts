@@ -23,6 +23,7 @@ export const QUOTE_STATUS = {
 export const PROJECT_STATUS = {
   PENDING: 'pendiente',
   IN_PROGRESS: 'en_curso',
+  PENDING_COMPLETION: 'pendiente_finalizacion',
   PAUSED: 'pausado',
   COMPLETED: 'completado',
   CANCELLED: 'cancelado',

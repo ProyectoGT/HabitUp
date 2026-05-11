@@ -11,20 +11,28 @@ import type { ProjectWithDetails, ProjectStatus } from '@/services/projects.serv
 import { Screen, Card, Badge, Button } from '@/components/ui';
 import { ArrowLeft, MessageCircle, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react-native';
 
+type ProjectAction = {
+  status: ProjectStatus;
+  label: string;
+  variant: 'primary' | 'outline' | 'ghost';
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+};
+
 const STATUS_CONFIG: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
   pendiente:  { label: 'Pendiente',   variant: 'warning' },
   en_curso:   { label: 'En curso',    variant: 'info' },
+  pendiente_finalizacion: { label: 'Pendiente de confirmación', variant: 'warning' },
   pausado:    { label: 'Pausado',     variant: 'default' },
   completado: { label: 'Completado',  variant: 'success' },
   cancelado:  { label: 'Cancelado',   variant: 'error' },
 };
 
 // Transiciones de estado permitidas para el profesional
-const NEXT_STATUSES: Record<string, { status: ProjectStatus; label: string; variant: 'primary' | 'outline' | 'ghost'; icon: any }> = {
+const NEXT_STATUSES: Record<string, ProjectAction[]> = {
   pendiente: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Iniciar proyecto', variant: 'primary', icon: PlayCircle }],
   en_curso: [
     { status: PROJECT_STATUS.PAUSED, label: 'Pausar proyecto', variant: 'outline', icon: PauseCircle },
-    { status: PROJECT_STATUS.COMPLETED, label: 'Marcar como completado', variant: 'primary', icon: CheckCircle2 },
+    { status: PROJECT_STATUS.PENDING_COMPLETION, label: 'Trabajo finalizado', variant: 'primary', icon: CheckCircle2 },
   ],
   pausado: [{ status: PROJECT_STATUS.IN_PROGRESS, label: 'Reanudar proyecto', variant: 'primary', icon: PlayCircle }],
 };
@@ -54,17 +62,17 @@ export default function ProfessionalProjectDetailScreen() {
   };
 
   const onChangeStatus = (next: { status: ProjectStatus; label: string }) => {
-    const isComplete = next.status === PROJECT_STATUS.COMPLETED;
+    const isPendingCompletion = next.status === PROJECT_STATUS.PENDING_COMPLETION;
     Alert.alert(
       next.label,
-      isComplete
+      isPendingCompletion
         ? 'Una vez completado, el cliente podrá dejar su reseña y se procesará el pago. ¿Confirmas?'
         : '¿Confirmas el cambio de estado?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          style: isComplete ? 'default' : 'default',
+          style: 'default',
           onPress: async () => {
             setIsUpdating(true);
             try {
@@ -165,7 +173,7 @@ export default function ProfessionalProjectDetailScreen() {
                 <ActivityIndicator color="#6366F1" size="small" className="py-2" />
               ) : (
                 <View className="gap-3">
-                  {nextActions.map((action, index) => {
+                  {nextActions.map((action) => {
                     const ActionIcon = action.icon;
                     return (
                       <Button

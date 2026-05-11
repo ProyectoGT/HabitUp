@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { ProfessionalProfile, Category } from '@/types/models';
 
 export interface CreateProfileParams {
@@ -46,7 +47,7 @@ export const professionalsService = {
   async getProfileById(id: string): Promise<ProfessionalProfile | null> {
     const { data, error } = await supabase
       .from('professional_profiles')
-      .select('*')
+      .select('*, users(full_name, avatar_url)')
       .eq('id', id)
       .single();
     if (error?.code === 'PGRST116') return null;
@@ -64,6 +65,10 @@ export const professionalsService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('professional_onboarding_completed', {
+      professional_id: data.id,
+      city: params.location_city,
+    });
     return data as ProfessionalProfile;
   },
 

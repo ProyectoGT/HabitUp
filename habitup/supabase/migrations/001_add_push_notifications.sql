@@ -25,13 +25,12 @@ CREATE OR REPLACE FUNCTION call_send_push(
 RETURNS VOID AS $$
 DECLARE
   v_token TEXT;
-  -- Valores hardcodeados del proyecto (no requieren ALTER DATABASE)
-  v_edge_url  CONSTANT TEXT := 'https://jcdllwourpwltaqdobxs.supabase.co/functions/v1/send-push-notification';
-  v_anon_key  CONSTANT TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZGxsd291cnB3bHRhcWRvYnhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNDc3OTIsImV4cCI6MjA5MjcyMzc5Mn0.wHNCoH-SiPl5hz5Z4TSzQKSGT7Va3jztIBc-xXC_Ayk';
+  v_edge_url TEXT := current_setting('app.settings.edge_push_url', true);
+  v_anon_key TEXT := current_setting('app.settings.supabase_anon_key', true);
 BEGIN
   -- Obtener token del usuario destinatario
   SELECT expo_push_token INTO v_token FROM users WHERE id = p_user_id;
-  IF v_token IS NULL THEN
+  IF v_token IS NULL OR v_edge_url IS NULL OR v_anon_key IS NULL THEN
     RETURN; -- Sin token, nada que hacer
   END IF;
 

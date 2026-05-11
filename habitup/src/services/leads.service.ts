@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { Lead } from '@/types/models';
 
 export interface CreateLeadParams {
@@ -54,6 +55,12 @@ export const leadsService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('lead_published', {
+      lead_id: data.id,
+      category_id: params.category_id,
+      urgency: params.urgency,
+      city: params.location_city,
+    });
     return data as Lead;
   },
 
