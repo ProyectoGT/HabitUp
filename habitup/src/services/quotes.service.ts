@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
+import { QUOTE_STATUS } from '@/utils/constants';
 import type { Project, Quote } from '@/types/models';
 
 export interface CreateQuoteParams {
@@ -33,9 +34,13 @@ export const quotesService = {
   },
 
   async create(params: CreateQuoteParams): Promise<Quote> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
     const { data: proData } = await supabase
       .from('professional_profiles')
       .select('id')
+      .eq('user_id', user.id)
       .single();
     if (!proData) throw new Error('Perfil profesional no encontrado');
 
@@ -53,97 +58,48 @@ export const quotesService = {
     return data;
   },
 
-  async accept(quoteId: string): Promise<Project | null> {
-    const { data: rpcData, error: rpcError } = await supabase
+  async accept(quoteId: string): Promise<Project> {
+    const { data, error } = await supabase
       .rpc('accept_quote', { p_quote_id: quoteId })
       .maybeSingle();
 
-    const rpcResult = rpcData as { project_id?: string } | null;
-    if (!rpcError) {
-      if (rpcResult?.project_id) {
-        const { data: project, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', rpcResult.project_id)
-          .single();
-        if (projectError) throw projectError;
-        trackEvent('quote_accepted', { quote_id: quoteId, project_id: project.id });
-        trackEvent('project_created', { project_id: project.id });
-        return project;
+    if (error) {
+      const hint = (error as { details?: string })?.details ?? '';
+      if (hint === 'quote_not_found') {
+        throw new Error('Presupuesto no encontrado');
       }
-    } else if (!['42883', 'PGRST202'].includes(rpcError.code ?? '')) {
-      throw rpcError;
+      if (hint === 'lead_not_found') {
+        throw new Error('Solicitud no encontrada');
+      }
+      if (hint === 'not_lead_owner') {
+        throw new Error('No puedes aceptar presupuestos de otra solicitud');
+      }
+      if (hint === 'lead_not_available') {
+        throw new Error('La solicitud ya no admite presupuestos');
+      }
+      if (hint === 'quote_not_acceptable') {
+        throw new Error('Este presupuesto no se puede aceptar');
+      }
+      throw error;
     }
 
-    const existingProject = await getProjectByQuoteId(quoteId);
-    if (existingProject) return existingProject;
+    if (!data) throw new Error('Error al aceptar el presupuesto');
 
-    const { data: quote, error: quoteError } = await supabase
-      .from('quotes')
-      .select('*, leads(id, client_id, category_id, title, description)')
-      .eq('id', quoteId)
-      .single();
-    if (quoteError) throw quoteError;
-    if (!quote?.leads) throw new Error('Lead asociado no encontrado');
+    const project = data as Project;
 
-    const { error: acceptError } = await supabase
-      .from('quotes')
-      .update({ status: 'aceptado', accepted_at: new Date().toISOString() })
-      .eq('id', quoteId);
-    if (acceptError) throw acceptError;
-
-    await supabase
-      .from('quotes')
-      .update({ status: 'rechazado', rejected_at: new Date().toISOString() })
-      .eq('lead_id', quote.lead_id)
-      .neq('id', quoteId)
-      .in('status', ['enviado', 'visto']);
-
-    await supabase
-      .from('leads')
-      .update({
-        status: 'asignado',
-        assigned_professional_id: quote.professional_id,
-        closed_at: new Date().toISOString(),
-      })
-      .eq('id', quote.lead_id);
-
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .insert({
-        lead_id: quote.lead_id,
-        quote_id: quoteId,
-        client_id: quote.leads.client_id,
-        professional_id: quote.professional_id,
-        category_id: quote.leads.category_id,
-        title: quote.leads.title,
-        description: quote.leads.description,
-        agreed_price: quote.amount,
-        currency: quote.currency,
-      })
-      .select()
-      .single();
-    if (projectError) throw projectError;
     trackEvent('quote_accepted', { quote_id: quoteId, project_id: project.id });
-    trackEvent('project_created', { project_id: project.id, lead_id: quote.lead_id });
+    trackEvent('project_created', { project_id: project.id });
+
     return project;
   },
 
   async reject(quoteId: string, reason?: string): Promise<void> {
     const { error } = await supabase
       .from('quotes')
-      .update({ status: 'rechazado', rejected_at: new Date().toISOString(), rejection_reason: reason })
+      .update({ status: QUOTE_STATUS.REJECTED, rejected_at: new Date().toISOString(), rejection_reason: reason })
       .eq('id', quoteId);
     if (error) throw error;
   },
 };
 
-async function getProjectByQuoteId(quoteId: string): Promise<Project | null> {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('quote_id', quoteId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
+

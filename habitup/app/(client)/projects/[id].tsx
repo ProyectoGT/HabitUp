@@ -12,9 +12,8 @@ import { projectsService } from '@/services/projects.service';
 import { reviewsService } from '@/services/reviews.service';
 import { paymentsService } from '@/services/payments.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { PROJECT_STATUS } from '@/utils/constants';
-import type { Review } from '@/types/models';
-import type { ProjectWithDetails } from '@/services/projects.service';
+import { PROJECT_STATUS, PAYMENT_STATUS } from '@/utils/constants';
+import type { Review, ProjectWithDetails } from '@/types/models';
 import { Screen, Card, Badge, Button, Input } from '@/components/ui';
 import { ArrowLeft, MessageCircle, Star, X, CreditCard, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -201,7 +200,7 @@ export default function ClientProjectDetailScreen() {
           {/* Estado del pago */}
           <Section title="Pago">
             <PaymentStatusCard status={project.payment_status} amount={project.agreed_price} isDark={isDark} />
-            {project.payment_status === 'pendiente' && project.status !== PROJECT_STATUS.CANCELLED && (
+            {project.payment_status === PAYMENT_STATUS.PENDING && project.status !== PROJECT_STATUS.CANCELLED && (
               <Button
                 label={`Pagar ${formatCurrency(project.agreed_price)}`}
                 onPress={onPay}

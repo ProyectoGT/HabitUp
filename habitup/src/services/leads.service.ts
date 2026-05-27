@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
+import { LEAD_STATUS } from '@/utils/constants';
 import type { Lead } from '@/types/models';
 
 export interface CreateLeadParams {
@@ -39,7 +40,7 @@ export const leadsService = {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')
-      .eq('status', 'activo')
+      .eq('status', LEAD_STATUS.ACTIVE)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data ?? []) as Lead[];
@@ -67,7 +68,7 @@ export const leadsService = {
   async cancel(id: string): Promise<void> {
     const { error } = await supabase
       .from('leads')
-      .update({ status: 'cancelado' })
+      .update({ status: LEAD_STATUS.CANCELLED })
       .eq('id', id);
     if (error) throw error;
   },

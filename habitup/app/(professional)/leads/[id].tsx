@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { leadsService } from '@/services/leads.service';
 import { quotesService } from '@/services/quotes.service';
+import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate, formatRelativeTime } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
 import { Screen, Card, Button, Input, Badge } from '@/components/ui';
@@ -125,7 +126,7 @@ export default function ProfessionalLeadDetailScreen() {
                 <Text className="font-bold text-primary text-base">Tu presupuesto enviado</Text>
                 <Badge 
                   label={myQuote.status} 
-                  variant={myQuote.status === 'aceptado' ? 'success' : myQuote.status === 'rechazado' ? 'error' : 'info'} 
+                  variant={myQuote.status === QUOTE_STATUS.ACCEPTED ? 'success' : myQuote.status === QUOTE_STATUS.REJECTED ? 'error' : 'info'} 
                   size="sm"
                 />
               </View>
@@ -151,7 +152,7 @@ export default function ProfessionalLeadDetailScreen() {
       </ScrollView>
 
       {/* CTA */}
-      {!myQuote && lead.status === 'activo' && (
+      {!myQuote && lead.status === LEAD_STATUS.ACTIVE && (
         <View className="absolute bottom-0 left-0 right-0 bg-surface px-6 py-4 border-t border-border/50 shadow-lg shadow-black/10 z-20">
           <Button
             label="Crear presupuesto"

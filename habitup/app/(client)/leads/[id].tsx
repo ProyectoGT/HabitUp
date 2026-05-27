@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Ref
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { quotesService } from '@/services/quotes.service';
+import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
 import { Screen, Card, Badge, Button } from '@/components/ui';
@@ -104,7 +105,7 @@ export default function ClientLeadDetailScreen() {
     </Screen>
   );
 
-  const canInteract = lead.status === 'activo' || lead.status === 'en_negociacion';
+  const canInteract = lead.status === LEAD_STATUS.ACTIVE || lead.status === LEAD_STATUS.NEGOTIATING;
 
   return (
     <Screen safeArea={false} className="flex-1">
@@ -230,7 +231,7 @@ function QuoteCard({
         </Text>
       )}
 
-      {canInteract && quote.status === 'enviado' && (
+      {canInteract && quote.status === QUOTE_STATUS.SENT && (
         <View className="flex-row gap-3 mt-2 border-t border-border/50 pt-4">
           <Button
             label="Rechazar"

@@ -69,42 +69,32 @@ CREATE TRIGGER trg_notify_client_new_quote
   FOR EACH ROW EXECUTE FUNCTION public.notify_client_new_quote();
 
 -- ═══════════════════════════════════════════════════
--- Notify professional when their quote is accepted
+-- notify_professional_quote_accepted eliminado:
+-- La notificacion la inserta directamente accept_quote()
+-- con related_id = project_id (mas util que quote_id).
+-- El trigger duplicaba la notificacion.
 -- ═══════════════════════════════════════════════════
-
-CREATE OR REPLACE FUNCTION public.notify_professional_quote_accepted()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NEW.status = 'aceptado' AND OLD.status <> 'aceptado' THEN
-    INSERT INTO notifications (user_id, type, title, message, related_id)
-    SELECT
-      pp.user_id,
-      'quote_accepted',
-      'Presupuesto aceptado',
-      'Tu presupuesto ha sido aceptado. Ya puedes acceder al proyecto.',
-      NEW.id
-    FROM professional_profiles pp
-    WHERE pp.id = NEW.professional_id;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
 DROP TRIGGER IF EXISTS trg_notify_professional_quote_accepted ON quotes;
-CREATE TRIGGER trg_notify_professional_quote_accepted
-  AFTER UPDATE ON quotes
-  FOR EACH ROW EXECUTE FUNCTION public.notify_professional_quote_accepted();
+DROP FUNCTION IF EXISTS public.notify_professional_quote_accepted;
 
 -- ═══════════════════════════════════════════════════
 -- Accept quote RPC (transactional lead→project creation)
+--
+-- Flujo atomico:
+--   1. Lock quote + lead (FOR UPDATE)
+--   2. Validar: cliente dueno del lead, lead activo, quote aceptable
+--   3. Idempotencia: si ya existe project para este quote, devolverlo
+--   4. Calcular comision (10% por defecto)
+--   5. Aceptar quote seleccionado
+--   6. Rechazar otros quotes del mismo lead
+--   7. Actualizar lead a 'asignado'
+--   8. Crear project con comision
+--   9. Notificar al profesional
+--   10. Devolver project completo
 -- ═══════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.accept_quote(p_quote_id UUID)
-RETURNS TABLE(project_id UUID)
+RETURNS SETOF projects
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -112,54 +102,73 @@ AS $$
 DECLARE
   v_quote quotes%ROWTYPE;
   v_lead leads%ROWTYPE;
-  v_project_id UUID;
+  v_project projects%ROWTYPE;
+  v_commission_pct NUMERIC(5,2) := 10.00;
+  v_commission_amount NUMERIC(10,2);
+  v_professional_receives NUMERIC(10,2);
 BEGIN
+  -- 1. Lock and validate quote
   SELECT * INTO v_quote
   FROM quotes
   WHERE id = p_quote_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Presupuesto no encontrado';
+    RAISE EXCEPTION 'Presupuesto no encontrado'
+      USING HINT = 'quote_not_found';
   END IF;
 
+  -- 2. Lock and validate lead
   SELECT * INTO v_lead
   FROM leads
   WHERE id = v_quote.lead_id
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Solicitud no encontrada';
+    RAISE EXCEPTION 'Solicitud no encontrada'
+      USING HINT = 'lead_not_found';
   END IF;
 
+  -- 3. Validate client owns the lead
   IF v_lead.client_id <> auth.uid() THEN
-    RAISE EXCEPTION 'No puedes aceptar presupuestos de otra solicitud';
+    RAISE EXCEPTION 'No puedes aceptar presupuestos de otra solicitud'
+      USING HINT = 'not_lead_owner';
   END IF;
 
+  -- 4. Validate lead is in acceptable state
   IF v_lead.status NOT IN ('activo', 'en_negociacion') THEN
-    RAISE EXCEPTION 'La solicitud ya no admite presupuestos';
+    RAISE EXCEPTION 'La solicitud ya no admite presupuestos'
+      USING HINT = 'lead_not_available';
   END IF;
 
+  -- 5. Validate quote is in acceptable state
   IF v_quote.status NOT IN ('enviado', 'visto') THEN
-    RAISE EXCEPTION 'Este presupuesto no se puede aceptar';
+    RAISE EXCEPTION 'Este presupuesto no se puede aceptar'
+      USING HINT = 'quote_not_acceptable';
   END IF;
 
-  SELECT id INTO v_project_id
+  -- 6. Idempotency — project already exists for this quote
+  SELECT * INTO v_project
   FROM projects
-  WHERE quote_id = p_quote_id
-  LIMIT 1;
+  WHERE quote_id = p_quote_id;
 
-  IF v_project_id IS NOT NULL THEN
-    RETURN QUERY SELECT v_project_id;
+  IF FOUND THEN
+    RETURN NEXT v_project;
     RETURN;
   END IF;
 
+  -- 7. Calculate commission (10% default)
+  v_commission_amount := ROUND(v_quote.amount * v_commission_pct / 100, 2);
+  v_professional_receives := v_quote.amount - v_commission_amount;
+
+  -- 8. Accept the chosen quote
   UPDATE quotes
   SET status = 'aceptado',
       accepted_at = NOW(),
       viewed_at = COALESCE(viewed_at, NOW())
   WHERE id = p_quote_id;
 
+  -- 9. Reject other pending quotes for the same lead
   UPDATE quotes
   SET status = 'rechazado',
       rejected_at = NOW(),
@@ -168,56 +177,44 @@ BEGIN
     AND id <> p_quote_id
     AND status IN ('enviado', 'visto');
 
+  -- 10. Update lead
   UPDATE leads
   SET status = 'asignado',
       assigned_professional_id = v_quote.professional_id,
       closed_at = NOW()
   WHERE id = v_quote.lead_id;
 
+  -- 11. Create project with commission fields
   INSERT INTO projects (
-    lead_id,
-    quote_id,
-    client_id,
-    professional_id,
-    category_id,
-    title,
-    description,
-    agreed_price,
-    currency,
-    status,
-    start_date,
-    expected_end_date
+    lead_id, quote_id, client_id, professional_id, category_id,
+    title, description, agreed_price, currency,
+    platform_commission_pct, platform_commission_amount, professional_receives,
+    status, start_date, expected_end_date
   )
   VALUES (
-    v_lead.id,
-    v_quote.id,
-    v_lead.client_id,
-    v_quote.professional_id,
-    v_lead.category_id,
-    v_lead.title,
-    v_lead.description,
-    v_quote.amount,
-    v_quote.currency,
-    'pendiente',
-    CURRENT_DATE,
-    CASE
-      WHEN v_quote.delivery_days IS NULL THEN NULL
-      ELSE CURRENT_DATE + v_quote.delivery_days
+    v_lead.id, v_quote.id, v_lead.client_id, v_quote.professional_id, v_lead.category_id,
+    v_lead.title, v_lead.description, v_quote.amount, v_quote.currency,
+    v_commission_pct, v_commission_amount, v_professional_receives,
+    'pendiente', CURRENT_DATE,
+    CASE WHEN v_quote.delivery_days IS NULL THEN NULL
+         ELSE CURRENT_DATE + v_quote.delivery_days
     END
   )
-  RETURNING id INTO v_project_id;
+  RETURNING * INTO v_project;
 
+  -- 12. Notify professional
   INSERT INTO notifications (user_id, type, title, message, related_id)
   SELECT
     pp.user_id,
     'quote_accepted',
     'Presupuesto aceptado',
     'Tu presupuesto ha sido aceptado. Ya puedes acceder al proyecto.',
-    v_project_id
+    v_project.id
   FROM professional_profiles pp
   WHERE pp.id = v_quote.professional_id;
 
-  RETURN QUERY SELECT v_project_id;
+  -- 13. Return full project row
+  RETURN NEXT v_project;
 END;
 $$;
 

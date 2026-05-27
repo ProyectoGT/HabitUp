@@ -24,9 +24,13 @@ export interface SearchProfessionalsParams {
 
 export const professionalsService = {
   async getMyProfile(): Promise<ProfessionalProfile | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('professional_profiles')
       .select('*')
+      .eq('user_id', user.id)
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
@@ -73,9 +77,13 @@ export const professionalsService = {
   },
 
   async updateProfile(params: Partial<CreateProfileParams>): Promise<ProfessionalProfile> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
     const { data, error } = await supabase
       .from('professional_profiles')
       .update(params)
+      .eq('user_id', user.id)
       .select()
       .single();
     if (error) throw error;

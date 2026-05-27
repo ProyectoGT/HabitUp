@@ -242,6 +242,7 @@ export async function teardownTestData(admin: SupabaseClient, td: TestData) {
 
   for (const del of [
     admin.from('messages').delete().in('project_id', [td.projectId]),
+    admin.from('projects').delete().eq('quote_id', td.quoteId),
     admin.from('projects').delete().eq('id', td.projectId),
     admin.from('quotes').delete().eq('id', td.quoteId),
     admin.from('leads').delete().in('id', [td.leadA1Id, td.leadA2Id, td.leadB1Id]),

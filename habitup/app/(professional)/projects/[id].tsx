@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PROJECT_STATUS } from '@/utils/constants';
-import type { ProjectWithDetails, ProjectStatus } from '@/services/projects.service';
+import type { ProjectWithDetails, ProjectStatus } from '@/types/models';
 import { Screen, Card, Badge, Button } from '@/components/ui';
 import { ArrowLeft, MessageCircle, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react-native';
 

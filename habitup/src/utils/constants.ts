@@ -18,6 +18,7 @@ export const QUOTE_STATUS = {
   ACCEPTED: 'aceptado',
   REJECTED: 'rechazado',
   EXPIRED: 'expirado',
+  WITHDRAWN: 'retirado',
 } as const;
 
 export const PROJECT_STATUS = {

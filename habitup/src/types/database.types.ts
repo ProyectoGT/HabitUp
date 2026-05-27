@@ -570,7 +570,26 @@ export interface Database {
           p_quote_id: string
         }
         Returns: {
-          project_id: string
+          id: string
+          lead_id: string | null
+          quote_id: string | null
+          client_id: string
+          professional_id: string
+          category_id: string
+          title: string
+          description: string | null
+          agreed_price: number
+          currency: string
+          start_date: string | null
+          expected_end_date: string | null
+          actual_end_date: string | null
+          status: string
+          platform_commission_pct: number
+          platform_commission_amount: number
+          professional_receives: number
+          payment_status: string
+          created_at: string
+          updated_at: string
         }[]
       }
     }

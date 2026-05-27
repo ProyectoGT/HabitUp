@@ -138,17 +138,29 @@ export async function test07_client_accepts_quote(
 ): Promise<TestResult> {
   const { data, error } = await clientA.rpc('accept_quote', {
     p_quote_id: td.quoteId,
-  })
+  }).maybeSingle()
 
   if (error) {
     return { pass: false, name: 'Cliente acepta quote de su lead', message: `accept_quote RPC fall: ${error.message}`, details: { error } }
   }
 
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    return { pass: false, name: 'Cliente acepta quote de su lead', message: 'RPC no devolvi project_id', details: { data } }
+  if (!data) {
+    return { pass: false, name: 'Cliente acepta quote de su lead', message: 'RPC no devolvi project', details: { data } }
   }
 
-  return { pass: true, name: 'Cliente acepta quote de su lead', message: `OK — project creado: ${data[0].project_id}`, details: { projectId: data[0].project_id } }
+  const project = data as Record<string, unknown>
+  const checks: string[] = []
+  if (!project.id) checks.push('falta id')
+  if (!project.agreed_price) checks.push('falta agreed_price')
+  if (project.platform_commission_amount === undefined) checks.push('falta platform_commission_amount')
+  if (project.professional_receives === undefined) checks.push('falta professional_receives')
+  if (project.status !== 'pendiente') checks.push(`status inesperado: ${project.status}`)
+
+  if (checks.length > 0) {
+    return { pass: false, name: 'Cliente acepta quote de su lead', message: `Project invalido: ${checks.join(', ')}`, details: { project } }
+  }
+
+  return { pass: true, name: 'Cliente acepta quote de su lead', message: `OK — project ${project.id} con comision ${project.platform_commission_amount}`, details: { projectId: project.id } }
 }
 
 export async function test08_outsider_cannot_read_project_messages(
@@ -204,6 +216,102 @@ export async function test09_recipient_marks_message_as_read(
   }
 
   return { pass: true, name: 'Destinatario marca mensaje como ledo', message: 'OK — mensaje marcado como ledo' }
+}
+
+export async function test11_accept_quote_idempotent(
+  clientA: SupabaseClient,
+  td: TestData,
+): Promise<TestResult> {
+  const first = await clientA.rpc('accept_quote', { p_quote_id: td.quoteId }).maybeSingle()
+  if (first.error) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: `Primera llamada fallo: ${first.error.message}`, details: { error: first.error } }
+  }
+  if (!first.data) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: 'Primera llamada no devolvio datos' }
+  }
+
+  const second = await clientA.rpc('accept_quote', { p_quote_id: td.quoteId }).maybeSingle()
+  if (second.error) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: `Segunda llamada fallo: ${second.error.message}`, details: { error: second.error } }
+  }
+  if (!second.data) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: 'Segunda llamada no devolvio datos' }
+  }
+
+  const firstProject = first.data as Record<string, unknown>
+  const secondProject = second.data as Record<string, unknown>
+
+  if (firstProject.id !== secondProject.id) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: 'Dos llamadas devolvieron distinto project id', details: { first: firstProject.id, second: secondProject.id } }
+  }
+
+  const { data: projects, error: countErr } = await clientA
+    .from('projects')
+    .select('id')
+    .eq('quote_id', td.quoteId)
+
+  if (countErr) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: `Error al contar projects: ${countErr.message}` }
+  }
+
+  if ((projects ?? []).length !== 1) {
+    return { pass: false, name: 'Aceptar mismo quote dos veces (idempotencia)', message: `Esperado 1 project, encontrados ${(projects ?? []).length}`, details: { projects } }
+  }
+
+  return { pass: true, name: 'Aceptar mismo quote dos veces (idempotencia)', message: `OK — mismo project id=${firstProject.id}, exactamente 1 project en DB` }
+}
+
+export async function test12_outsider_cannot_accept_foreign_quote(
+  clientB: SupabaseClient,
+  td: TestData,
+): Promise<TestResult> {
+  const { error } = await clientB.rpc('accept_quote', { p_quote_id: td.quoteId }).maybeSingle()
+
+  if (!error) {
+    return { pass: false, name: 'Cliente B NO acepta quote de lead ajeno', message: 'Cliente B pudo aceptar un quote que no le pertenece' }
+  }
+
+  const hint = (error as { details?: string })?.details ?? ''
+  if (hint !== 'not_lead_owner') {
+    return { pass: false, name: 'Cliente B NO acepta quote de lead ajeno', message: `Error inesperado: ${error.message}`, details: { hint, error } }
+  }
+
+  return { pass: true, name: 'Cliente B NO acepta quote de lead ajeno', message: 'OK — RPC rechazo con not_lead_owner' }
+}
+
+export async function test13_cannot_accept_quote_for_unavailable_lead(
+  clients: Record<string, SupabaseClient>,
+  td: TestData,
+): Promise<TestResult> {
+  const { data: quote, error: insertErr } = await clients.professional
+    .from('quotes')
+    .insert({
+      lead_id: td.leadA2Id,
+      professional_id: td.professionalProfileId,
+      amount: 500,
+      currency: 'EUR',
+      description: 'Quote for closed lead test',
+      status: 'enviado',
+    })
+    .select('id')
+    .single()
+
+  if (insertErr) {
+    return { pass: false, name: 'Quote en lead cerrado es rechazado', message: `No se pudo crear quote de test: ${insertErr.message}`, details: { insertErr } }
+  }
+
+  const { error: rpcErr } = await clients.clientA.rpc('accept_quote', { p_quote_id: quote.id }).maybeSingle()
+
+  if (!rpcErr) {
+    return { pass: false, name: 'Quote en lead cerrado es rechazado', message: 'RPC deberia haber rechazado el quote para lead cerrado' }
+  }
+
+  const hint = (rpcErr as { details?: string })?.details ?? ''
+  if (hint !== 'lead_not_available') {
+    return { pass: false, name: 'Quote en lead cerrado es rechazado', message: `Esperado lead_not_available, obtenido ${hint}`, details: { hint, error: rpcErr } }
+  }
+
+  return { pass: true, name: 'Quote en lead cerrado es rechazado', message: 'OK — RPC rechazo quote para lead cerrado' }
 }
 
 export async function test10_verification_docs_visibility(
@@ -271,4 +379,7 @@ export const ALL_TESTS: { name: string; fn: TestFn }[] = [
   { name: '08 — No participante NO lee mensajes ajenos', fn: (td, c) => test08_outsider_cannot_read_project_messages(c.outsider, td) },
   { name: '09 — Destinatario marca mensaje como ledo', fn: (td, c) => test09_recipient_marks_message_as_read(c.clientA, c.professional, td) },
   { name: '10 — Documentos de verificacin', fn: (td, c) => test10_verification_docs_visibility(c.outsider, td) },
+  { name: '11 — Aceptar mismo quote dos veces (idempotencia)', fn: (td, c) => test11_accept_quote_idempotent(c.clientA, td) },
+  { name: '12 — Cliente B NO acepta quote de lead ajeno', fn: (td, c) => test12_outsider_cannot_accept_foreign_quote(c.clientB, td) },
+  { name: '13 — Quote en lead cerrado es rechazado', fn: (td, c) => test13_cannot_accept_quote_for_unavailable_lead(c, td) },
 ]
