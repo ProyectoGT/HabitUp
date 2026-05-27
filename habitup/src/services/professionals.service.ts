@@ -2,6 +2,13 @@ import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
 import type { ProfessionalProfile, ProfessionalProfileWithUser, Category } from '@/types/models';
 
+export interface StripeOnboardingStatus {
+  accountId: string | null;
+  status: 'not_created' | 'pending' | 'active' | 'restricted' | 'disabled';
+  enabled: boolean;
+  canReceivePayments: boolean;
+}
+
 export interface CreateProfileParams {
   company_name?: string;
   company_type: 'autonomo' | 'empresa';
@@ -131,6 +138,33 @@ export const professionalsService = {
 
     const { error } = await supabase.from('professional_categories').insert(rows);
     if (error) throw error;
+  },
+
+  async getStripeOnboardingStatus(): Promise<StripeOnboardingStatus> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .select('stripe_account_id, stripe_account_status, stripe_account_enabled')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error?.code === 'PGRST116') {
+      return { accountId: null, status: 'not_created', enabled: false, canReceivePayments: false };
+    }
+    if (error) throw error;
+
+    const accountId = data?.stripe_account_id ?? null;
+    const status = (data?.stripe_account_status ?? 'not_created') as StripeOnboardingStatus['status'];
+    const enabled = data?.stripe_account_enabled ?? false;
+
+    return {
+      accountId,
+      status,
+      enabled,
+      canReceivePayments: status === 'active' && enabled,
+    };
   },
 
   async getCategories(): Promise<Category[]> {

@@ -32,9 +32,11 @@ export const PROJECT_STATUS = {
 
 export const PAYMENT_STATUS = {
   PENDING: 'pendiente',
-  PROCESSING: 'en_proceso',
+  PENDING_PAYMENT: 'pendiente_pago',
   COMPLETED: 'completado',
   FAILED: 'fallido',
+  REFUNDED: 'reembolsado',
+  DISPUTE: 'disputa',
 } as const;
 
 export const URGENCY = {

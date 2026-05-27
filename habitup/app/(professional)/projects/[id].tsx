@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { PROJECT_STATUS } from '@/utils/constants';
+import { PROJECT_STATUS, PAYMENT_STATUS } from '@/utils/constants';
 import type { ProjectWithDetails, ProjectStatus } from '@/types/models';
 import { Screen, Card, Badge, Button } from '@/components/ui';
 import { ArrowLeft, MessageCircle, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react-native';
@@ -16,6 +16,15 @@ type ProjectAction = {
   label: string;
   variant: 'primary' | 'outline' | 'ghost';
   icon: React.ComponentType<{ size?: number; color?: string }>;
+};
+
+const PAYMENT_LABELS: Record<string, string> = {
+  [PAYMENT_STATUS.PENDING]: 'Pendiente',
+  [PAYMENT_STATUS.PENDING_PAYMENT]: 'Procesando pago',
+  [PAYMENT_STATUS.COMPLETED]: 'Completado',
+  [PAYMENT_STATUS.FAILED]: 'Fallido',
+  [PAYMENT_STATUS.REFUNDED]: 'Reembolsado',
+  [PAYMENT_STATUS.DISPUTE]: 'En disputa',
 };
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
@@ -66,7 +75,7 @@ export default function ProfessionalProjectDetailScreen() {
     Alert.alert(
       next.label,
       isPendingCompletion
-        ? 'Una vez completado, el cliente podrá dejar su reseña y se procesará el pago. ¿Confirmas?'
+        ? 'El cliente recibirá una notificación para revisar el trabajo. Cuando confirme, el proyecto se marcará como completado. ¿Confirmas?'
         : '¿Confirmas el cambio de estado?',
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -163,7 +172,7 @@ export default function ProfessionalProjectDetailScreen() {
             {project.actual_end_date && (
               <Row label="Fecha fin real" value={formatDate(project.actual_end_date)} />
             )}
-            <Row label="Estado de pago" value={project.payment_status} />
+            <Row label="Estado de pago" value={PAYMENT_LABELS[project.payment_status] ?? project.payment_status} />
           </Section>
 
           {/* Cambios de estado */}

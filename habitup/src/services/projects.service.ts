@@ -88,6 +88,30 @@ export const projectsService = {
   },
 
   /**
+   * Cliente confirma finalización del proyecto vía RPC atómico.
+   * Valida: proyecto en pendiente_finalizacion, cliente es dueño.
+   * Actualiza projects.status → 'completado' y actual_end_date.
+   * NO depende del payment_status (pago y obra van separados).
+   */
+  async completeProject(id: string): Promise<Project> {
+    const { data, error } = await supabase
+      .rpc('complete_project', { p_project_id: id });
+    if (error) throw error;
+    return (data as unknown as Project[])[0];
+  },
+
+  /**
+   * Profesional solicita finalización vía RPC.
+   * Marca projects.status → 'pendiente_finalizacion' y notifica al cliente.
+   */
+  async requestCompletion(id: string): Promise<Project> {
+    const { data, error } = await supabase
+      .rpc('request_project_completion', { p_project_id: id });
+    if (error) throw error;
+    return (data as unknown as Project[])[0];
+  },
+
+  /**
    * Acepta un presupuesto y crea el proyecto de forma atómica.
    * Delega en el RPC `accept_quote` que valida:
    *   - El usuario autenticado es el cliente propietario del lead

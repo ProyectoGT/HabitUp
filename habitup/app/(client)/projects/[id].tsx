@@ -93,7 +93,7 @@ export default function ClientProjectDetailScreen() {
       if (error) {
         Alert.alert('Pago fallido', error.message);
       } else {
-        Alert.alert('¡Pago completado! 🎉', 'El profesional ha sido notificado.');
+        Alert.alert('Pago completado', 'El pago se ha procesado correctamente. El profesional será notificado cuando se confirme.');
         await load();
       }
     } catch (e) {
@@ -128,7 +128,7 @@ export default function ClientProjectDetailScreen() {
           text: 'Sí, confirmar',
           onPress: async () => {
             try {
-              await projectsService.updateStatus(id, PROJECT_STATUS.COMPLETED);
+              await projectsService.completeProject(id);
               await load();
             } catch (e) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Error al confirmar');
@@ -357,10 +357,12 @@ function Row({ label, value, highlight }: { label: string; value: string; highli
 
 function PaymentStatusCard({ status, amount, isDark }: { status: string; amount: number; isDark: boolean }) {
   const LABELS: Record<string, { icon: any; label: string; bg: string; border: string; iconColor: string }> = {
-    pendiente:   { icon: Clock, label: 'Pago pendiente',    bg: 'bg-warning/10', border: 'border-warning/30', iconColor: '#F59E0B' },
-    en_proceso:  { icon: AlertCircle, label: 'Procesando pago',  bg: 'bg-info/10', border: 'border-info/30', iconColor: '#3B82F6' },
-    completado:  { icon: CheckCircle2, label: 'Pago completado',   bg: 'bg-success/10', border: 'border-success/30', iconColor: '#10B981' },
-    fallido:     { icon: X, label: 'Pago fallido',      bg: 'bg-error/10', border: 'border-error/30', iconColor: '#EF4444' },
+    pendiente:       { icon: Clock, label: 'Pago pendiente',            bg: 'bg-warning/10', border: 'border-warning/30', iconColor: '#F59E0B' },
+    pendiente_pago:  { icon: AlertCircle, label: 'Procesando pago',     bg: 'bg-info/10', border: 'border-info/30', iconColor: '#3B82F6' },
+    completado:      { icon: CheckCircle2, label: 'Pago completado',    bg: 'bg-success/10', border: 'border-success/30', iconColor: '#10B981' },
+    fallido:         { icon: X, label: 'Pago fallido',                  bg: 'bg-error/10', border: 'border-error/30', iconColor: '#EF4444' },
+    reembolsado:     { icon: X, label: 'Reembolsado',                   bg: 'bg-warning/10', border: 'border-warning/30', iconColor: '#F59E0B' },
+    disputa:         { icon: AlertCircle, label: 'Pago en disputa',     bg: 'bg-error/10', border: 'border-error/30', iconColor: '#EF4444' },
   };
   
   const defaultCfg = { icon: Clock, label: status, bg: 'bg-border/20', border: 'border-border/50', iconColor: isDark ? '#94A3B8' : '#64748B' };

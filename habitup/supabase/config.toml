@@ -43,6 +43,12 @@ enable_confirmations = false
 # The shared secret check happens inside the function itself.
 verify_jwt = false
 
+[functions.stripe-webhook]
+# verify_jwt is false because Stripe sends webhooks directly,
+# not via an authenticated user session.
+# Signature verification is done inside the function itself.
+verify_jwt = false
+
 # ── Storage buckets ─────────────────────────────────
 # Buckets are CREATED by migration 011, not by config.toml.
 # These entries serve as documentation for local dev.

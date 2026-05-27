@@ -12,7 +12,7 @@ import { paymentsService } from '@/services/payments.service';
 import { supabase } from '@/services/supabase';
 import type { Category } from '@/types/models';
 import { Screen, Card, Button, Input, Badge } from '@/components/ui';
-import { Save, LogOut, CheckCircle2, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
+import { Save, LogOut, CheckCircle2, XCircle, Clock, AlertTriangle, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
@@ -86,11 +86,14 @@ export default function ProfessionalProfileScreen() {
     setConnectLoading(true);
     try {
       const { url, account_id } = await paymentsService.createConnectAccountLink();
-      // Guardar account_id en store si es nuevo
       if (professionalProfile && !professionalProfile.stripe_account_id) {
         setProfessionalProfile({ ...professionalProfile, stripe_account_id: account_id });
       }
       await WebBrowser.openBrowserAsync(url);
+      // Esperar a que Stripe procese y envíe webhook antes de recargar
+      await new Promise(r => setTimeout(r, 2000));
+      const updated = await professionalsService.getMyProfile();
+      if (updated) setProfessionalProfile(updated);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Error al conectar con Stripe');
     } finally {
@@ -268,34 +271,101 @@ export default function ProfessionalProfileScreen() {
           className="mb-6 shadow-sm shadow-primary/30"
         />
 
-        {/* Stripe Connect */}
+        {/* Stripe Connect — 5 estados */}
         <SectionCard title="Cuenta de cobros" icon={<Zap size={20} color="#6366F1" />}>
-          {professionalProfile?.stripe_account_enabled ? (
-            <View className="flex-row items-center gap-4 bg-success/10 p-4 rounded-xl border border-success/20">
-              <View className="w-12 h-12 bg-success/20 rounded-full items-center justify-center">
-                <CheckCircle2 size={24} color="#10B981" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-bold text-success text-base mb-0.5">Cuenta verificada</Text>
-                <Text className="text-sm font-medium text-success/80 leading-tight">
-                  Recibirás el 90% de cada pago de forma automática
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <>
-              <Text className="text-sm font-medium text-muted-text mb-4 leading-relaxed">
-                Conecta tu cuenta bancaria para recibir pagos a través de HabitUp. El proceso es seguro y tarda menos de 5 minutos.
-              </Text>
-              <Button
-                label={professionalProfile?.stripe_account_id ? 'Continuar verificación' : 'Conectar con Stripe'}
-                onPress={onConnectStripe}
-                isLoading={connectLoading}
-                leftIcon={<Zap size={20} color="#FFF" />}
-                style={{ backgroundColor: '#635BFF' }}
-              />
-            </>
-          )}
+          {(() => {
+            const status = (professionalProfile?.stripe_account_status ?? 'not_created') as
+              'not_created' | 'pending' | 'active' | 'restricted' | 'disabled';
+            const hasAccount = !!professionalProfile?.stripe_account_id;
+
+            const CONFIG: Record<string, {
+              icon: React.ComponentType<{ size?: number; color?: string }>;
+              title: string;
+              message: string;
+              bg: string;
+              border: string;
+              iconBg: string;
+              iconColor: string;
+              titleColor: string;
+              textColor: string;
+              buttonLabel: string | null;
+            }> = {
+              not_created: {
+                icon: Zap,
+                title: 'Configurar cobros',
+                message: 'Conecta tu cuenta bancaria para recibir pagos a través de HabitUp. El proceso es seguro y guiado.',
+                bg: 'bg-border/20', border: 'border-border/30', iconBg: 'bg-surface',
+                iconColor: isDark ? '#94A3B8' : '#64748B', titleColor: 'text-text', textColor: 'text-muted-text',
+                buttonLabel: 'Conectar con Stripe',
+              },
+              pending: {
+                icon: Clock,
+                title: 'Verificación pendiente',
+                message: 'Stripe está procesando tu información. Completa los pasos pendientes para activar los cobros.',
+                bg: 'bg-warning/10', border: 'border-warning/30', iconBg: 'bg-warning/20',
+                iconColor: '#F59E0B', titleColor: 'text-warning', textColor: 'text-warning/80',
+                buttonLabel: 'Continuar verificación',
+              },
+              restricted: {
+                icon: AlertTriangle,
+                title: 'Requisitos pendientes',
+                message: 'Stripe necesita información adicional para mantener tu cuenta activa. Revisa los requisitos pendientes.',
+                bg: 'bg-error/10', border: 'border-error/30', iconBg: 'bg-error/20',
+                iconColor: '#EF4444', titleColor: 'text-error', textColor: 'text-error/80',
+                buttonLabel: 'Revisar requisitos',
+              },
+              active: {
+                icon: CheckCircle2,
+                title: 'Cuenta activa',
+                message: 'Puedes recibir pagos automáticamente. Recibirás el importe acordado tras la comisión de HabitUp.',
+                bg: 'bg-success/10', border: 'border-success/20', iconBg: 'bg-success/20',
+                iconColor: '#10B981', titleColor: 'text-success', textColor: 'text-success/80',
+                buttonLabel: null,
+              },
+              disabled: {
+                icon: XCircle,
+                title: 'Cuenta deshabilitada',
+                message: 'Tu cuenta de cobros ha sido deshabilitada. Contacta con soporte para resolverlo.',
+                bg: 'bg-error/10', border: 'border-error/30', iconBg: 'bg-error/20',
+                iconColor: '#EF4444', titleColor: 'text-error', textColor: 'text-error/80',
+                buttonLabel: null,
+              },
+            };
+
+            const cfg = CONFIG[status] ?? CONFIG.not_created;
+            const Icon = cfg.icon;
+
+            return (
+              <>
+                <View className={`flex-row items-center gap-4 p-4 rounded-xl border ${cfg.bg} ${cfg.border}`}>
+                  <View className={`w-12 h-12 ${cfg.iconBg} rounded-full items-center justify-center shadow-sm`}>
+                    <Icon size={24} color={cfg.iconColor} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className={`font-bold text-base mb-0.5 ${cfg.titleColor}`}>{cfg.title}</Text>
+                    <Text className={`text-sm font-medium leading-tight ${cfg.textColor}`}>
+                      {cfg.message}
+                    </Text>
+                  </View>
+                </View>
+                {cfg.buttonLabel && (
+                  <Button
+                    label={cfg.buttonLabel}
+                    onPress={onConnectStripe}
+                    isLoading={connectLoading}
+                    leftIcon={<Zap size={20} color="#FFF" />}
+                    style={{ backgroundColor: '#635BFF' }}
+                    className="mt-4 shadow-sm shadow-primary/30"
+                  />
+                )}
+                {status === 'active' && hasAccount && (
+                  <Text className="text-xs text-muted-text text-center mt-3">
+                    ID de cuenta: {professionalProfile?.stripe_account_id?.slice(0, 12)}...
+                  </Text>
+                )}
+              </>
+            );
+          })()}
         </SectionCard>
 
         <Button

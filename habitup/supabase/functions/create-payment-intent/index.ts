@@ -48,7 +48,7 @@ serve(async (req: Request) => {
       .single();
 
     if (projError || !project) return json({ error: 'Proyecto no encontrado' }, 404);
-    if (project.payment_status !== 'pendiente') {
+    if (!['pendiente'].includes(project.payment_status)) {
       return json({ error: 'Este proyecto ya tiene un pago iniciado o completado' }, 400);
     }
 
@@ -98,7 +98,7 @@ serve(async (req: Request) => {
     // Actualizar payment_status del proyecto
     await supabase
       .from('projects')
-      .update({ payment_status: 'en_proceso' })
+      .update({ payment_status: 'pendiente_pago' })
       .eq('id', project_id);
 
     return json({ client_secret: paymentIntent.client_secret });

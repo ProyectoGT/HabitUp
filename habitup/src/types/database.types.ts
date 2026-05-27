@@ -103,6 +103,7 @@ export interface Database {
           service_radius_km: number
           stripe_account_id: string | null
           stripe_account_enabled: boolean
+          stripe_account_status: string
           website_url: string | null
           instagram_url: string | null
           facebook_url: string | null
@@ -133,6 +134,7 @@ export interface Database {
           service_radius_km?: number
           stripe_account_id?: string | null
           stripe_account_enabled?: boolean
+          stripe_account_status?: string
           website_url?: string | null
           instagram_url?: string | null
           facebook_url?: string | null
@@ -161,6 +163,7 @@ export interface Database {
           service_radius_km?: number
           stripe_account_id?: string | null
           stripe_account_enabled?: boolean
+          stripe_account_status?: string
           website_url?: string | null
           instagram_url?: string | null
           facebook_url?: string | null

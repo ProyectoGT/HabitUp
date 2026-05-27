@@ -62,10 +62,13 @@ serve(async (req: Request) => {
 
       accountId = account.id;
 
-      // Guardar el account id en el perfil
+      // Guardar el account id y marcar pending
       await supabase
         .from('professional_profiles')
-        .update({ stripe_account_id: accountId })
+        .update({
+          stripe_account_id: accountId,
+          stripe_account_status: 'pending',
+        })
         .eq('id', profile.id);
     }
 
@@ -73,7 +76,7 @@ serve(async (req: Request) => {
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/create-connect-account`,
-      return_url: 'habitup://stripe-connect-return',
+      return_url: 'habitup://profile',
       type: 'account_onboarding',
     });
 
