@@ -3,7 +3,7 @@ import { trackEvent } from './analytics.service';
 import type { Message } from '@/types/models';
 
 export const messagesService = {
-  async getByProject(projectId: string): Promise<Message[]> {
+  async getByProject(projectId: string) {
     const { data, error } = await supabase
       .from('messages')
       .select('*')

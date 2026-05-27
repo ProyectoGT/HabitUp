@@ -13,23 +13,23 @@ export interface CreateQuoteParams {
 }
 
 export const quotesService = {
-  async getQuotesForLead(leadId: string): Promise<Quote[]> {
+  async getQuotesForLead(leadId: string) {
     const { data, error } = await supabase
       .from('quotes')
       .select('*, professional_profiles(company_name, avg_rating, location_city, users(full_name, avatar_url))')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []) as Quote[];
+    return data ?? [];
   },
 
-  async getMyQuotes(): Promise<Quote[]> {
+  async getMyQuotes() {
     const { data, error } = await supabase
       .from('quotes')
       .select('*, leads(title, category_id, categories(name))')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []) as Quote[];
+    return data ?? [];
   },
 
   async create(params: CreateQuoteParams): Promise<Quote> {
@@ -50,7 +50,7 @@ export const quotesService = {
       lead_id: params.lead_id,
       amount: params.amount,
     });
-    return data as Quote;
+    return data;
   },
 
   async accept(quoteId: string): Promise<Project | null> {
@@ -58,18 +58,18 @@ export const quotesService = {
       .rpc('accept_quote', { p_quote_id: quoteId })
       .maybeSingle();
 
+    const rpcResult = rpcData as { project_id?: string } | null;
     if (!rpcError) {
-      const result = rpcData as { project_id?: string } | null;
-      if (result?.project_id) {
+      if (rpcResult?.project_id) {
         const { data: project, error: projectError } = await supabase
           .from('projects')
           .select('*')
-          .eq('id', result.project_id)
+          .eq('id', rpcResult.project_id)
           .single();
         if (projectError) throw projectError;
         trackEvent('quote_accepted', { quote_id: quoteId, project_id: project.id });
         trackEvent('project_created', { project_id: project.id });
-        return project as Project;
+        return project;
       }
     } else if (!['42883', 'PGRST202'].includes(rpcError.code ?? '')) {
       throw rpcError;
@@ -78,23 +78,13 @@ export const quotesService = {
     const existingProject = await getProjectByQuoteId(quoteId);
     if (existingProject) return existingProject;
 
-    const { data: quoteData, error: quoteError } = await supabase
+    const { data: quote, error: quoteError } = await supabase
       .from('quotes')
       .select('*, leads(id, client_id, category_id, title, description)')
       .eq('id', quoteId)
       .single();
     if (quoteError) throw quoteError;
-
-    const quote = quoteData as Quote & {
-      leads: {
-        id: string;
-        client_id: string;
-        category_id: string;
-        title: string;
-        description: string | null;
-      } | null;
-    };
-    if (!quote.leads) throw new Error('Lead asociado no encontrado');
+    if (!quote?.leads) throw new Error('Lead asociado no encontrado');
 
     const { error: acceptError } = await supabase
       .from('quotes')
@@ -136,7 +126,7 @@ export const quotesService = {
     if (projectError) throw projectError;
     trackEvent('quote_accepted', { quote_id: quoteId, project_id: project.id });
     trackEvent('project_created', { project_id: project.id, lead_id: quote.lead_id });
-    return project as Project;
+    return project;
   },
 
   async reject(quoteId: string, reason?: string): Promise<void> {
@@ -155,5 +145,5 @@ async function getProjectByQuoteId(quoteId: string): Promise<Project | null> {
     .eq('quote_id', quoteId)
     .maybeSingle();
   if (error) throw error;
-  return data as Project | null;
+  return data;
 }

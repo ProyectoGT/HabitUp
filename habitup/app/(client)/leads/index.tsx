@@ -65,7 +65,7 @@ export default function ClientLeadsScreen() {
   };
 
   const filtered =
-    filter === 'all' ? leads : leads.filter((l) => FILTER_STATUS_MAP[filter].includes(l.status));
+    filter === 'all' ? leads : leads.filter((l) => FILTER_STATUS_MAP[filter].includes(l.status as LeadStatus));
 
   return (
     <Screen safeArea={false} className="flex-1">

@@ -48,8 +48,6 @@ export const projectsService = {
     if (error) throw error;
   },
 
-  // Solo el profesional puede crear el proyecto al aceptarse un quote.
-  // Normalmente se crea via trigger o Edge Function, pero lo exponemos por si acaso.
   async createFromQuote(quoteId: string): Promise<Project> {
     const { data: quote } = await supabase
       .from('quotes')
@@ -57,9 +55,7 @@ export const projectsService = {
       .eq('id', quoteId)
       .single();
     if (!quote) throw new Error('Quote no encontrado');
-
-    const lead = quote.leads as { title: string; description: string; category_id: string } | null;
-    if (!lead) throw new Error('Lead asociado no encontrado');
+    if (!quote.leads) throw new Error('Lead asociado no encontrado');
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No autenticado');
@@ -71,15 +67,15 @@ export const projectsService = {
         quote_id: quoteId,
         client_id: user.id,
         professional_id: quote.professional_id,
-        category_id: lead.category_id,
-        title: lead.title,
-        description: lead.description,
+        category_id: quote.leads.category_id,
+        title: quote.leads.title,
+        description: quote.leads.description,
         agreed_price: quote.amount,
         currency: quote.currency,
       })
       .select()
       .single();
     if (error) throw error;
-    return data as Project;
+    return data;
   },
 };

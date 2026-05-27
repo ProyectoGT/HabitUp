@@ -13,8 +13,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "echo \"Tests pendientes: instalar Jest/RNTL — ver QA_CHECKLIST.md\"",
-    "supabase:types": "supabase gen types typescript --project-id \"$EXPO_PUBLIC_SUPABASE_PROJECT_ID\" > database.types.ts",
-    "supabase:types:local": "supabase gen types typescript --local > database.types.ts"
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:types": "supabase gen types typescript --project-id \"$EXPO_PUBLIC_SUPABASE_PROJECT_ID\" > src/types/database.types.ts",
+    "supabase:types:local": "supabase gen types typescript --local > src/types/database.types.ts",
+    "supabase:link": "supabase link --project-ref \"$EXPO_PUBLIC_SUPABASE_PROJECT_ID\"",
+    "supabase:test:rls": "npx tsx supabase/tests/rls/run.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

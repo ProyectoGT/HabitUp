@@ -11,6 +11,9 @@
     "format": "cd habitup && prettier --write .",
     "format:check": "cd habitup && prettier --check .",
     "test": "cd habitup && npm run test",
+    "supabase:start": "cd habitup && npm run supabase:start",
+    "supabase:stop": "cd habitup && npm run supabase:stop",
+    "supabase:reset": "cd habitup && npm run supabase:reset",
     "supabase:types": "cd habitup && npm run supabase:types",
     "supabase:types:local": "cd habitup && npm run supabase:types:local"
   },

@@ -1,0 +1,59 @@
+# =====================================================
+# Supabase CLI Configuration — HabitUp
+# Local development:  supabase start
+# Remote linking:     supabase link --project-ref <id>
+# Generate types:     supabase gen types typescript --local > database.types.ts
+# =====================================================
+
+[AUTH]
+enabled = true
+# JWT expiry, site_url, etc. can be overridden here.
+# See https://supabase.com/docs/reference/cli/config#auth
+
+[DB]
+# Port for local Postgres
+port = 54322
+# Password for local Postgres (auto-generated, not sensitive)
+password = "postgres"
+
+[API]
+enabled = true
+port = 54321
+# Schema exposure (all public by default)
+schemas = ["public", "graphql_public"]
+
+[STUDIO]
+enabled = true
+port = 54323
+
+[INBUCKET]
+enabled = true
+port = 54324
+
+[EMAIL]
+enabled = true
+
+# ── Storage buckets ─────────────────────────────────
+# Uncomment and configure after creating buckets manually:
+# [STORAGE]
+# [STORAGE.buckets]
+# [STORAGE.buckets.photos]
+# public = false
+# file_size_limit = 10485760
+# allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+# ── Edge Functions ──────────────────────────────────
+[FUNCTIONS]
+enabled = true
+
+[FUNCTIONS."send-push-notification"]
+verify_jwt = false
+
+# ── Custom SMTP (production only) ───────────────────
+# [SMTP]
+# host = "smtp.sendgrid.net"
+# port = 587
+# user = "apikey"
+# pass = "your-sendgrid-api-key"
+# admin_emails = ["noreply@habitup.app"]
+# sender_name = "HabitUp"

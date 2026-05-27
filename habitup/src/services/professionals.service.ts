@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
-import type { ProfessionalProfile, Category } from '@/types/models';
+import type { ProfessionalProfile, ProfessionalProfileWithUser, Category } from '@/types/models';
 
 export interface CreateProfileParams {
   company_name?: string;
@@ -28,9 +28,9 @@ export const professionalsService = {
       .from('professional_profiles')
       .select('*')
       .single();
-    if (error?.code === 'PGRST116') return null; // no rows
+    if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfile | null;
   },
 
   async getProfileByUserId(userId: string): Promise<ProfessionalProfile | null> {
@@ -41,10 +41,10 @@ export const professionalsService = {
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfile | null;
   },
 
-  async getProfileById(id: string): Promise<ProfessionalProfile | null> {
+  async getProfileById(id: string) {
     const { data, error } = await supabase
       .from('professional_profiles')
       .select('*, users(full_name, avatar_url)')
@@ -52,7 +52,7 @@ export const professionalsService = {
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfileWithUser | null;
   },
 
   async createProfile(params: CreateProfileParams): Promise<ProfessionalProfile> {
@@ -108,7 +108,6 @@ export const professionalsService = {
   },
 
   async setCategories(professionalId: string, categoryIds: string[]) {
-    // Reemplaza todas las categorías del profesional
     await supabase
       .from('professional_categories')
       .delete()

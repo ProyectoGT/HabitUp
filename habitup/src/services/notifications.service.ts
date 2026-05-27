@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import type { Notification } from '@/types/models';
 
 export const notificationsService = {
-  async getAll(): Promise<Notification[]> {
+  async getAll() {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')

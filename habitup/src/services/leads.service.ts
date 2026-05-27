@@ -15,7 +15,7 @@ export interface CreateLeadParams {
 }
 
 export const leadsService = {
-  async getMyLeads(): Promise<Lead[]> {
+  async getMyLeads() {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug)')
@@ -24,7 +24,7 @@ export const leadsService = {
     return (data ?? []) as Lead[];
   },
 
-  async getById(id: string): Promise<Lead | null> {
+  async getById(id: string) {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug)')
@@ -35,7 +35,7 @@ export const leadsService = {
     return data as Lead;
   },
 
-  async getAvailableForProfessional(): Promise<Lead[]> {
+  async getAvailableForProfessional() {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')

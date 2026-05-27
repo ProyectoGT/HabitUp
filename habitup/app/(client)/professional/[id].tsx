@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'rea
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { professionalsService } from '@/services/professionals.service';
 import { formatRating } from '@/utils/formatters';
-import type { ProfessionalProfile, Category } from '@/types/models';
+import type { ProfessionalProfileWithUser, Category } from '@/types/models';
 import { Screen, Button, Avatar, Badge, Card } from '@/components/ui';
 import { ArrowLeft, Star, MapPin, CheckCircle2, ShieldCheck, Map } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -14,7 +14,7 @@ export default function ProfessionalDetailScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [profile, setProfile] = useState<ProfessionalProfile | null>(null);
+  const [profile, setProfile] = useState<ProfessionalProfileWithUser | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

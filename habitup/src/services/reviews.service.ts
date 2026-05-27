@@ -15,7 +15,7 @@ export interface CreateReviewParams {
 }
 
 export const reviewsService = {
-  async getByProfessional(professionalId: string): Promise<Review[]> {
+  async getByProfessional(professionalId: string) {
     const { data, error } = await supabase
       .from('reviews')
       .select('*, users!reviewer_id(full_name, avatar_url)')
@@ -25,7 +25,7 @@ export const reviewsService = {
     return (data ?? []) as Review[];
   },
 
-  async getByProject(projectId: string): Promise<Review | null> {
+  async getByProject(projectId: string) {
     const { data, error } = await supabase
       .from('reviews')
       .select('*')
@@ -33,7 +33,7 @@ export const reviewsService = {
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as Review;
+    return data as Review | null;
   },
 
   async create(params: CreateReviewParams): Promise<Review> {
