@@ -1,3 +1,5 @@
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   createAdminClient,
@@ -7,6 +9,32 @@ import {
   type TestData,
 } from './helpers'
 import { ALL_TESTS, type TestResult } from './suite'
+
+function tryLoadEnv(): void {
+  const candidates = ['.env.local', '.env'].map((f) => join(process.cwd(), f))
+  for (const filepath of candidates) {
+    if (!existsSync(filepath)) continue
+    try {
+      const content = readFileSync(filepath, 'utf-8')
+      for (const raw of content.split('\n')) {
+        const line = raw.trim()
+        if (!line || line.startsWith('#')) continue
+        const eq = line.indexOf('=')
+        if (eq === -1) continue
+        const key = line.slice(0, eq).trim()
+        let val = line.slice(eq + 1).trim()
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1)
+        }
+        if (key && !process.env[key]) process.env[key] = val
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
+
+tryLoadEnv()
 
 const RUN_ID = Date.now()
 const START = Date.now()

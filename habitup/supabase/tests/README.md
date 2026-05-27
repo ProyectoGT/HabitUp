@@ -5,20 +5,52 @@ Suite de tests de Row-Level Security para Supabase.
 ## Requisitos
 
 - Node 18+ con `npx tsx` (se instala automticamente)
-- Supabase local en ejecucin (`npm run supabase:start`)
-- Migraciones aplicadas (`npm run supabase:reset`)
-- Seed ejecutado (`supabase db reset` lo incluye)
+- Supabase accesible (local o remoto) con migraciones + seed aplicados
 
 ## Ejecutar
 
+### Local (recomendado)
+
 ```bash
-# Desde habitup/
+cd habitup
+npm run supabase:start
+npm run supabase:reset
 npm run supabase:test:rls
 ```
 
-O directamente:
+El runner detecta automticamente las credenciales locales por defecto.
+
+### Contra un proyecto remoto
 
 ```bash
+cd habitup
+
+# 1. Vincular proyecto remoto (opcional, para `supabase db push`)
+npx supabase link --project-ref <project-id>
+npx supabase db push
+
+# 2. Crear .env.local con las credenciales remotas
+cp supabase/tests/.env.example .env.local
+# Editar .env.local: pegar SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+
+# 3. Ejecutar tests
+npm run supabase:test:rls
+```
+
+El runner carga automticamente `.env.local` o `.env` desde la raz del proyecto, si existen. Si no encuentra ninguno, usa las credenciales locales por defecto.
+
+### Ejecucin directa (sin npm)
+
+```bash
+npx tsx supabase/tests/rls/run.ts
+```
+
+### Con variables de entorno explcitas
+
+```bash
+SUPABASE_URL=https://<id>.supabase.co \
+SUPABASE_ANON_KEY=<anon> \
+SUPABASE_SERVICE_ROLE_KEY=<service_role> \
 npx tsx supabase/tests/rls/run.ts
 ```
 

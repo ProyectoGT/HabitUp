@@ -5,55 +5,52 @@
 # Generate types:     supabase gen types typescript --local > database.types.ts
 # =====================================================
 
-[AUTH]
-enabled = true
-# JWT expiry, site_url, etc. can be overridden here.
-# See https://supabase.com/docs/reference/cli/config#auth
-
-[DB]
-# Port for local Postgres
-port = 54322
-# Password for local Postgres (auto-generated, not sensitive)
-password = "postgres"
-
-[API]
+[api]
 enabled = true
 port = 54321
-# Schema exposure (all public by default)
 schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
 
-[STUDIO]
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
 enabled = true
 port = 54323
+api_url = "http://127.0.0.1"
 
-[INBUCKET]
+[inbucket]
 enabled = true
 port = 54324
+smtp_port = 54325
+pop3_port = 54326
 
-[EMAIL]
+[auth]
 enabled = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# ── Edge Functions ──────────────────────────────────
+[functions.send-push-notification]
+verify_jwt = false
 
 # ── Storage buckets ─────────────────────────────────
 # Uncomment and configure after creating buckets manually:
-# [STORAGE]
-# [STORAGE.buckets]
-# [STORAGE.buckets.photos]
+# [storage.buckets.photos]
 # public = false
 # file_size_limit = 10485760
 # allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
 
-# ── Edge Functions ──────────────────────────────────
-[FUNCTIONS]
-enabled = true
-
-[FUNCTIONS."send-push-notification"]
-verify_jwt = false
-
 # ── Custom SMTP (production only) ───────────────────
-# [SMTP]
+# [auth.smtp]
 # host = "smtp.sendgrid.net"
 # port = 587
 # user = "apikey"
 # pass = "your-sendgrid-api-key"
-# admin_emails = ["noreply@habitup.app"]
+# admin_email = "noreply@habitup.app"
 # sender_name = "HabitUp"
