@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import type { Notification } from '@/types/models';
 
+const EXPO_TOKEN_REGEX = /^ExponentPushToken\[[a-zA-Z0-9_-]+\]$/;
+
 export const notificationsService = {
   async getAll() {
     const { data, error } = await supabase
@@ -29,11 +31,19 @@ export const notificationsService = {
   },
 
   async saveExpoPushToken(token: string): Promise<void> {
+    if (!EXPO_TOKEN_REGEX.test(token)) {
+      console.warn('saveExpoPushToken: formato de token invalido, ignorando', token.slice(0, 20));
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { error } = await supabase
       .from('users')
-      .update({ expo_push_token: token })
+      .update({
+        expo_push_token: token,
+        last_push_error: null,
+        last_push_error_at: null,
+      })
       .eq('id', user.id);
     if (error) throw error;
   },

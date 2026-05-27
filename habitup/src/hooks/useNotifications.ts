@@ -89,7 +89,12 @@ async function registerForPushNotifications() {
     finalStatus = status;
   }
 
-  if (finalStatus !== 'granted') return;
+  if (finalStatus !== 'granted') {
+    // Permission denied — clear any stale token so we don't
+    // attempt pushes that will never arrive.
+    await notificationsService.clearExpoPushToken().catch(() => null);
+    return;
+  }
 
   if (Platform.OS === 'android') {
     await ExpoNotifications.setNotificationChannelAsync('default', {
@@ -104,6 +109,9 @@ async function registerForPushNotifications() {
     const tokenData = await ExpoNotifications.getExpoPushTokenAsync({
       projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
     });
+    // Re-register even if the token is the same — this also
+    // clears any prior last_push_error flag in the DB so push
+    // triggers resume for this user.
     await notificationsService.saveExpoPushToken(tokenData.data);
   } catch {
     // Falla en emuladores sin servicios de Google

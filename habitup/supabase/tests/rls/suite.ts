@@ -193,12 +193,7 @@ export async function test09_recipient_marks_message_as_read(
     .eq('recipient_id', td.userIds.clientA.id)
 
   if (error) {
-    return {
-      pass: false,
-      name: 'Destinatario marca mensaje como ledo',
-      message: `UPDATE rechazado — falta policy UPDATE en messages. Error: ${error.message}`,
-      details: { error },
-    }
+    return { pass: false, name: 'Destinatario marca mensaje como ledo', message: `UPDATE rechazado por RLS: ${error.message}`, details: { error } }
   }
 
   const { data: msg, error: checkErr } = await clientA

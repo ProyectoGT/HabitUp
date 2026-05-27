@@ -1,12 +1,15 @@
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const stripePublishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
-
-if (!supabaseUrl) throw new Error('Missing env var: EXPO_PUBLIC_SUPABASE_URL');
-if (!supabaseAnonKey) throw new Error('Missing env var: EXPO_PUBLIC_SUPABASE_ANON_KEY');
+function requireVar(name: string): string {
+  const val = process.env[name];
+  if (!val) throw new Error(`Missing env var: ${name}`);
+  return val;
+}
 
 export const ENV = {
-  SUPABASE_URL: supabaseUrl,
-  SUPABASE_ANON_KEY: supabaseAnonKey,
-  STRIPE_PUBLISHABLE_KEY: stripePublishableKey,
+  get SUPABASE_URL() {
+    return requireVar('EXPO_PUBLIC_SUPABASE_URL');
+  },
+  get SUPABASE_ANON_KEY() {
+    return requireVar('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  },
+  STRIPE_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
 } as const;
