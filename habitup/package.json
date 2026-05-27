@@ -3,14 +3,18 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
     "start": "expo start",
+    "dev": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint",
-    "test": "echo \"Tests pendientes: ver ../QA_CHECKLIST.md\""
+    "lint": "npx expo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"Tests pendientes: instalar Jest/RNTL — ver QA_CHECKLIST.md\"",
+    "supabase:types": "supabase gen types typescript --project-id \"$EXPO_PUBLIC_SUPABASE_PROJECT_ID\" > database.types.ts",
+    "supabase:types:local": "supabase gen types typescript --local > database.types.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -52,6 +56,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
+    "prettier": "^3.5.0",
     "typescript": "~5.9.2"
   },
   "private": true

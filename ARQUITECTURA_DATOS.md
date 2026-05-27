@@ -1,4 +1,4 @@
-# 📊 ARQUITECTURA DE DATOS - Reforma360
+# 📊 ARQUITECTURA DE DATOS - HabitUp
 
 ## Índice
 1. [Visión General](#visión-general)
@@ -14,7 +14,7 @@
 
 La base de datos está diseñada para soportar un **marketplace de doble cara** (cliente ↔ profesional) con estas características clave:
 
-- **Autenticación**: users + Firebase Auth (integrado con Supabase)
+- **Autenticación**: users + Supabase Auth
 - **Perfiles**: profesionales con verificación, geolocalización y ratings
 - **Búsqueda**: leads (solicitudes) y profesionales
 - **Contratación**: flujo quote → proyecto → pago → reseña
@@ -53,7 +53,7 @@ Tabla central de autenticación y perfiles de usuario.
 
 ```sql
 users
-├── id (UUID) — sync con auth.uid() de Firebase/Supabase
+├── id (UUID) — sync con auth.uid() de Supabase
 ├── email (VARCHAR) — único
 ├── full_name (VARCHAR)
 ├── phone (VARCHAR)
@@ -65,7 +65,7 @@ users
 ```
 
 **Notas importantes:**
-- El `id` es UUID y debe coincidir con `auth.uid()` de Firebase. Supabase gestiona esto automáticamente.
+- El `id` es UUID y debe coincidir con `auth.uid()` de Supabase. Se gestiona automáticamente mediante trigger.
 - `user_type` determina los permisos en la app.
 - `deleted_at` para soft-delete (no eliminar de verdad, por auditoría).
 
@@ -709,7 +709,7 @@ Desde la app, cachea:
 
 Una vez confirmes que el esquema está bien en Supabase:
 
-1. **Crear la tabla `auth.users`** de Firebase/Supabase (automático)
+1. **Crear la tabla `auth.users`** de Supabase (automático)
 2. **Configurar RLS en todas las tablas** (incluido en el script)
 3. **Crear Storage bucket** para fotos (portfolio, leads, reviews)
 4. **Configurar webhooks de Stripe** para actualizar payments

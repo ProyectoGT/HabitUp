@@ -1,141 +1,197 @@
 # HabitUp
 
-HabitUp es una app movil marketplace para conectar clientes que necesitan reformas, reparaciones o servicios del hogar con profesionales verificados.
+Marketplace móvil para conectar clientes con profesionales de reformas y rehabilitación.
 
-El MVP prioriza el core loop:
+**Core loop:** Cliente crea solicitud → profesional envía presupuesto → cliente acepta → proyecto → chat → finalización → reseña verificada.
 
-Cliente crea solicitud -> profesional envia presupuesto -> cliente acepta -> se crea proyecto -> chat -> finalizacion confirmada -> resena verificada.
+---
 
 ## Stack
 
-- React Native + Expo
-- TypeScript estricto
-- Expo Router
-- Supabase Auth, PostgreSQL, RLS, Realtime y Storage
-- Zustand
-- React Hook Form + Zod
-- NativeWind
-- Stripe Connect preparado para fases posteriores
+| Capa         | Tecnología                                                    |
+| ------------ | ------------------------------------------------------------- |
+| Frontend     | React Native + Expo SDK 54 + Expo Router                     |
+| Lenguaje     | TypeScript estricto                                           |
+| Estilos      | NativeWind v4 + Tailwind CSS                                  |
+| Backend      | Supabase (PostgreSQL, Auth, RLS, Realtime, Storage)           |
+| Estado       | Zustand                                                       |
+| Formularios  | React Hook Form + Zod                                         |
+| Pagos        | Stripe Connect (Edge Functions)                               |
+| Notificaciones | Expo Notifications + Supabase Realtime                      |
 
-## Estructura
-
-```txt
-habitup/
-  app/                    Rutas Expo Router
-    (auth)/               Login, registro y onboarding inicial
-    (client)/             Home, leads, proyectos, perfil, busqueda
-    (professional)/       Home, leads disponibles, proyectos, perfil profesional
-    chat/[projectId].tsx  Chat por proyecto
-  src/
-    components/           UI reutilizable, cards, chat, leads, profesionales
-    config/               Variables de entorno
-    hooks/                Auth, notificaciones, mensajes, profesionales
-    services/             Supabase y logica de negocio por dominio
-    stores/               Zustand
-    types/                Modelos principales
-    utils/                Constantes y formateadores
-  supabase/
-    migrations/           Migraciones SQL
-    functions/            Edge Functions futuras/pagos/notificaciones
-```
+---
 
 ## Requisitos
 
-- Node 20+
-- npm
-- Expo CLI via `npx` o scripts npm
-- Proyecto Supabase remoto o Supabase local
+- **Node 20+**
+- **npm** (o npm.cmd en Windows)
+- **Expo CLI**: se usa via `npx`, no instalación global
+- **Supabase CLI** (opcional, solo para `supabase:types`): `npm install -g supabase`
+- **EAS CLI** (opcional, solo para builds): `npm install -g eas-cli`
 
-En Windows/PowerShell puede que `npm` y `npx` fallen por politica de ejecucion de scripts. Usa `npm.cmd` o `npx.cmd`.
+> En Windows/PowerShell, si `npm` falla por políticas de ejecución, usa `npm.cmd`.
 
-## Variables de entorno
+---
 
-Copia `habitup/.env.example` a `habitup/.env.local`.
+## Primeros pasos
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_optional_for_future_payments
-EXPO_PUBLIC_PROJECT_ID=your-expo-project-id
-```
-
-Stripe es opcional para el MVP sin pagos.
-
-## Scripts
-
-Desde la raiz:
+### 1. Clonar e instalar
 
 ```bash
-npm run dev
-npm run android
-npm run ios
-npm run web
-npm run typecheck
-npm run lint
-npm run test
+git clone <repo-url> habitup
+cd habitup
+npm install
+cd habitup
+npm install
+cd ..
 ```
 
-Desde `habitup/` tambien puedes usar los mismos scripts.
+### 2. Configurar entorno
 
-## Supabase
+Copia el ejemplo y rellena los valores:
 
-1. Crea un proyecto en Supabase.
-2. Aplica el schema principal si la base esta vacia: `supabase/habitup_schema.sql`.
-3. Aplica las migraciones de la app en orden:
-   - `habitup/supabase/migrations/001_add_push_notifications.sql`
-   - `habitup/supabase/migrations/002_mvp_core_loop.sql`
-4. Activa Realtime para `messages` y `notifications` si quieres chat/notificaciones en vivo.
-5. Crea buckets de Storage futuros:
-   - `lead-photos`
-   - `portfolio`
-   - `verification-documents`
+```bash
+cp habitup/.env.example habitup/.env.local
+```
 
-Seed demo:
+Edita `habitup/.env.local` con los datos de tu proyecto Supabase:
 
-- `habitup/supabase/seed_demo.sql`
-- Requiere crear antes los usuarios en Supabase Auth con los UUID indicados en el propio archivo.
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+EXPO_PUBLIC_SUPABASE_PROJECT_ID=tu-ref
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_PROJECT_ID=tu-expo-project-id
+```
 
-## Estado actual
+Stripe y Expo Notifications son opcionales en MVP.
 
-Implementado:
+### 3. Arrancar Expo
 
-- Auth con Supabase.
-- Roles cliente/profesional.
-- Onboarding profesional.
-- Creacion y listado de leads.
-- Feed profesional de leads.
-- Envio de presupuestos.
-- Aceptacion de presupuesto con RPC `accept_quote`.
-- Creacion de proyecto.
-- Chat basico por proyecto con Supabase Realtime.
-- Resenas verificadas para proyectos completados.
-- Perfil profesional basico.
-- Notificaciones in-app.
-- Helper `trackEvent` preparado para PostHog/Segment.
+```bash
+# Web (rapido para desarrollo)
+npm run web
 
-Pendiente para cerrar MVP comercial:
+# iOS (requiere Xcode)
+npm run ios
 
-- Onboarding cliente dedicado.
-- Fotos de leads y portfolio con Supabase Storage.
-- Automatizacion de creacion de usuarios Auth demo desde CLI/Admin API.
-- ESLint/Prettier/Jest instalados y ejecutables.
-- Pulido visual final y test manual en dispositivo.
+# Android (requiere Android Studio)
+npm run android
+```
 
-## Documentacion
-
-- `PRODUCT_SPEC.md`
-- `ARCHITECTURE.md`
-- `DATABASE.md`
-- `SECURITY_RLS.md`
-- `DEMO_SCRIPT.md`
-- `ROADMAP.md`
-
-## Verificacion rapida
+### 4. Verificar
 
 ```bash
 cd habitup
-npm.cmd run typecheck
-npx.cmd expo config --type public
+npm run typecheck    # TypeScript sin errores
+npm run lint         # ESLint
+npm run format:check # Prettier
 ```
 
-El core loop debe probarse con un cliente y un profesional reales creados en Supabase Auth.
+---
+
+## Supabase
+
+### Opción A: Proyecto remoto (recomendado para empezar)
+
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. Copia las credenciales a `.env.local`.
+3. Aplica migraciones en orden desde el SQL Editor:
+   - `habitup/supabase/migrations/000_schema_base.sql`
+   - `habitup/supabase/migrations/001_add_push_notifications.sql`
+   - `habitup/supabase/migrations/002_mvp_core_loop.sql`
+4. Activa **Realtime** para tablas `messages` y `notifications` (Dashboard > Database > Replication).
+5. Crea buckets de Storage:
+   - `lead-photos` (público)
+   - `portfolio` (público)
+   - `verification-documents` (privado)
+
+### Opción B: Local (requiere Supabase CLI + Docker)
+
+```bash
+supabase start
+supabase migration up
+supabase db push
+npm run supabase:types:local
+```
+
+### Seed demo
+
+Ejecuta `habitup/supabase/seed_demo.sql` en tu proyecto. Requiere crear los usuarios en Auth con los UUID indicados en el propio fichero.
+
+---
+
+## Scripts disponibles
+
+Ejecutar desde `habitup/` o desde la raíz (los scripts raíz delegan en la subcarpeta):
+
+| Script             | Descripción                                      |
+| ------------------ | ------------------------------------------------ |
+| `npm run start`    | Inicia Expo en modo desarrollo                   |
+| `npm run dev`      | Alias de `start`                                 |
+| `npm run web`      | Expo para web                                    |
+| `npm run ios`      | Expo para iOS (requiere Xcode)                   |
+| `npm run android`  | Expo para Android (requiere Android Studio)      |
+| `npm run typecheck`| TypeScript --noEmit (strict)                     |
+| `npm run lint`     | ESLint con configuración Expo                    |
+| `npm run format`   | Prettier --write (aplica formato)                |
+| `npm run format:check` | Prettier --check (solo verifica)             |
+| `npm run test`     | Tests (pendiente de configurar Jest/RNTL)       |
+| `npm run supabase:types` | Genera `database.types.ts` desde Supabase remoto |
+
+---
+
+## Estructura del proyecto
+
+```
+habitup/
+├── app/                    # Expo Router (ficheros = rutas)
+│   ├── (auth)/             # Login, registro, onboarding
+│   ├── (client)/           # Home, leads, proyectos, perfil, búsqueda
+│   ├── (professional)/     # Home, leads, proyectos, perfil, onboarding profesional
+│   ├── chat/               # Chat por proyecto
+│   ├── _layout.tsx          # Layout raíz (Stripe, auth guard)
+│   ├── index.tsx            # Splash + redirección
+│   └── notifications.tsx
+├── src/
+│   ├── components/         # UI, leads, profesionales, chat
+│   ├── config/             # Variables de entorno (env.ts)
+│   ├── hooks/              # useAuth, useMessages, useNotifications, useProfessionals
+│   ├── services/           # Supabase por dominio (leads, quotes, projects...)
+│   ├── stores/             # Zustand (authStore, notificationStore)
+│   ├── types/              # Modelos TypeScript
+│   └── utils/              # Constantes, formateadores
+├── supabase/
+│   ├── migrations/         # Migraciones SQL (000, 001, 002)
+│   ├── functions/          # Edge Functions (Stripe, push)
+│   └── seed_demo.sql       # Datos de demostración
+├── .env.example
+├── app.json
+├── package.json
+├── tsconfig.json
+├── tailwind.config.js
+└── metro.config.js
+```
+
+---
+
+## Documentación adicional
+
+| Fichero                     | Contenido                                   |
+| --------------------------- | ------------------------------------------- |
+| `PRODUCT_SPEC.md`           | Especificación del producto                 |
+| `ARCHITECTURE.md`           | Decisiones técnicas                         |
+| `DATABASE.md`               | Modelo de datos detallado                   |
+| `SECURITY_RLS.md`           | Políticas de Row Level Security             |
+| `DEMO_SCRIPT.md`            | Script de demo guiado                      |
+| `QA_CHECKLIST.md`           | Lista de verificación para QA              |
+| `ROADMAP.md`                | Próximos pasos                              |
+| `HABITUP_CONTEXT_PROMPT.md` | Contexto para asistentes IA                 |
+
+---
+
+## Estado del proyecto
+
+**Implementado:** Auth, roles, leads, presupuestos, aceptación transaccional, proyectos, chat, reseñas, notificaciones in-app, perfil profesional.
+
+**Pendiente (MVP):** Onboarding cliente, fotos/Storage, tests automatizados, pulido visual.

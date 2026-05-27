@@ -1,15 +1,20 @@
 {
   "scripts": {
-    "dev": "cd habitup && expo start",
+    "install:app": "cd habitup && npm install",
     "start": "cd habitup && expo start",
+    "dev": "cd habitup && expo start",
     "ios": "cd habitup && expo start --ios",
     "android": "cd habitup && expo start --android",
     "web": "cd habitup && expo start --web",
     "typecheck": "cd habitup && tsc --noEmit",
-    "lint": "cd habitup && expo lint",
-    "test": "cd habitup && npm run test"
+    "lint": "cd habitup && npx expo lint",
+    "format": "cd habitup && prettier --write .",
+    "format:check": "cd habitup && prettier --check .",
+    "test": "cd habitup && npm run test",
+    "supabase:types": "cd habitup && npm run supabase:types",
+    "supabase:types:local": "cd habitup && npm run supabase:types:local"
   },
   "devDependencies": {
-    "typescript": "^6.0.3"
+    "typescript": "~5.9.2"
   }
 }

@@ -6,7 +6,7 @@
 - Anadir ESLint/Prettier instalados.
 - Preparar Jest/React Native Testing Library.
 - Unificar documentacion Supabase.
-- Eliminar documentacion antigua de Reforma360 o migrarla a HabitUp.
+- Documentacion antigua de Reforma360 migrada a HabitUp. Legacy archivado en docs/archive/.
 
 ## Epica 2: Auth Y Roles
 

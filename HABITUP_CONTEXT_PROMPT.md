@@ -222,7 +222,7 @@ EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
 
 - [x] Nombre definido: HabitUp
 - [x] Stack decidido: React Native + Expo + Supabase
-- [x] Esquema de BD diseñado (reforma360_schema.sql → renombrar a habitup)
+- [x] Esquema de BD diseñado (migraciones en habitup/supabase/migrations/)
 - [ ] Proyecto Supabase creado y configurado
 - [ ] Proyecto React Native / Expo inicializado
 - [ ] Autenticación funcionando

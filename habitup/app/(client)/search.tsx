@@ -8,8 +8,8 @@ import { useProfessionals } from '@/hooks/useProfessionals';
 import { ProfessionalCard } from '@/components/professionals';
 import { professionalsService } from '@/services/professionals.service';
 import type { Category } from '@/types/models';
-import { Screen, Input, Button } from '@/components/ui';
-import { Search, MapPin, Star } from 'lucide-react-native';
+import { Screen, Input } from '@/components/ui';
+import { Search, MapPin, SlidersHorizontal } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export default function SearchScreen() {
@@ -38,29 +38,44 @@ export default function SearchScreen() {
 
   const onLoadMore = () => {
     if (!isLoading && hasMore) {
-      search({
-        city: city.trim() || undefined,
-        category_slug: selectedCategory?.slug,
-        min_rating: minRating,
-      }, false);
+      search({ city: city.trim() || undefined, category_slug: selectedCategory?.slug, min_rating: minRating }, false);
     }
   };
 
   const RATINGS = [
-    { label: 'Todos', value: undefined },
-    { label: '4★+', value: 4 },
-    { label: '4.5★+', value: 4.5 },
+    { label: 'Todos',  value: undefined },
+    { label: '4★+',    value: 4 },
+    { label: '4.5★+',  value: 4.5 },
   ];
+
+  const surfaceBg  = isDark ? '#1A1D29' : '#FFFFFF';
+  const borderCol  = isDark ? '#2D3548' : '#E2E8F0';
+  const chipBg     = isDark ? '#1E2433' : '#F1F5F9';
+  const chipText   = isDark ? '#94A3B8' : '#64748B';
 
   return (
     <Screen safeArea={false} className="flex-1">
-      {/* Header */}
-      <View className="bg-surface px-6 pt-16 pb-4 rounded-b-3xl shadow-sm shadow-primary/10 z-10 border-b border-border/50">
+      {/* ── Sticky header ── */}
+      <View
+        style={{
+          paddingTop: 60,
+          paddingBottom: 12,
+          paddingHorizontal: 24,
+          backgroundColor: surfaceBg,
+          borderBottomWidth: 1,
+          borderBottomColor: borderCol,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 3,
+        }}
+      >
         <Text className="text-2xl font-extrabold text-text mb-4">Explorar</Text>
 
-        {/* Buscador por ciudad */}
+        {/* Search bar */}
         <View className="flex-row items-center gap-3 mb-4">
-          <View className="flex-1">
+          <View style={{ flex: 1 }}>
             <Input
               placeholder="Ciudad o zona..."
               value={city}
@@ -72,54 +87,84 @@ export default function SearchScreen() {
               style={{ marginBottom: 0 }}
             />
           </View>
-          <Button
-            label=""
+          <TouchableOpacity
             onPress={onSearch}
-            leftIcon={<Search size={20} color="#FFF" />}
-            size="sm"
-            className="w-12 h-[50px] mt-[-16px] rounded-2xl shadow-sm shadow-primary/30"
-          />
+            activeOpacity={0.85}
+            style={{
+              width: 50, height: 50,
+              borderRadius: 14,
+              backgroundColor: '#6366F1',
+              alignItems: 'center', justifyContent: 'center',
+              shadowColor: '#6366F1',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.35,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
+          >
+            <Search size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
 
-        {/* Filtro categorías */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+        {/* Category chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -24 }}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+          className="mb-3"
+        >
           <TouchableOpacity
-            onPress={() => { setSelectedCategory(null); }}
-            className={`px-4 py-2 rounded-full mr-2 border-2 ${
-              !selectedCategory ? 'bg-primary border-primary' : 'bg-surface border-border'
-            }`}
+            onPress={() => setSelectedCategory(null)}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: 7, paddingHorizontal: 16,
+              borderRadius: 20,
+              backgroundColor: !selectedCategory ? '#6366F1' : chipBg,
+            }}
           >
-            <Text className={`text-sm font-semibold ${!selectedCategory ? 'text-white' : 'text-muted-text'}`}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: !selectedCategory ? '#fff' : chipText }}>
               Todos
             </Text>
           </TouchableOpacity>
+
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
               onPress={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full mr-2 border-2 ${
-                selectedCategory?.id === cat.id ? 'bg-primary border-primary' : 'bg-surface border-border'
-              }`}
+              activeOpacity={0.8}
+              style={{
+                paddingVertical: 7, paddingHorizontal: 16,
+                borderRadius: 20,
+                backgroundColor: selectedCategory?.id === cat.id ? '#6366F1' : chipBg,
+              }}
             >
-              <Text className={`text-sm font-semibold ${selectedCategory?.id === cat.id ? 'text-white' : 'text-muted-text'}`}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: selectedCategory?.id === cat.id ? '#fff' : chipText }}>
                 {cat.name}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Filtro rating */}
+        {/* Rating chips */}
         <View className="flex-row gap-2">
           {RATINGS.map(({ label, value }) => (
             <TouchableOpacity
               key={label}
               onPress={() => setMinRating(value)}
-              className={`px-4 py-1.5 rounded-full flex-row items-center border-2 ${
-                minRating === value ? 'bg-warning/20 border-warning' : 'bg-surface border-border'
-              }`}
+              activeOpacity={0.8}
+              style={{
+                paddingVertical: 6, paddingHorizontal: 14,
+                borderRadius: 20,
+                backgroundColor: minRating === value ? 'rgba(245,158,11,0.15)' : chipBg,
+                borderWidth: 1.5,
+                borderColor: minRating === value ? '#F59E0B' : 'transparent',
+              }}
             >
-              {value !== undefined && <Star size={12} color={minRating === value ? '#F59E0B' : (isDark ? '#94A3B8' : '#64748B')} className="mr-1" />}
-              <Text className={`text-sm font-medium ${minRating === value ? 'text-warning' : 'text-muted-text'}`}>
+              <Text style={{
+                fontSize: 12, fontWeight: '600',
+                color: minRating === value ? '#F59E0B' : chipText,
+              }}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -127,7 +172,7 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Resultados */}
+      {/* ── Results ── */}
       {error ? (
         <View className="flex-1 items-center justify-center p-6">
           <Text className="text-error text-center bg-error/10 p-4 rounded-xl">{error}</Text>
@@ -136,7 +181,7 @@ export default function SearchScreen() {
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-6 pt-6 pb-24"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 }}
           renderItem={({ item }) => (
             <ProfessionalCard
               professional={item}
@@ -146,8 +191,11 @@ export default function SearchScreen() {
           ListEmptyComponent={
             isLoading ? null : (
               <View className="items-center justify-center mt-20">
-                <View className="w-16 h-16 bg-border/50 rounded-full items-center justify-center mb-4">
-                  <Search size={32} color={isDark ? '#94A3B8' : '#64748B'} />
+                <View
+                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
+                  style={{ backgroundColor: isDark ? '#1E2433' : '#F1F5F9' }}
+                >
+                  <Search size={32} color={isDark ? '#64748B' : '#94A3B8'} />
                 </View>
                 <Text className="text-text font-bold text-lg mb-1">Sin resultados</Text>
                 <Text className="text-muted-text text-center">No encontramos profesionales con estos filtros.</Text>
@@ -155,7 +203,7 @@ export default function SearchScreen() {
             )
           }
           ListFooterComponent={
-            isLoading ? <ActivityIndicator className="my-8" color="#6366F1" size="large" /> : null
+            isLoading ? <ActivityIndicator style={{ marginVertical: 32 }} color="#6366F1" size="large" /> : null
           }
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.3}
