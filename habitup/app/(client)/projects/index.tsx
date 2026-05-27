@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/services/supabase';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Project } from '@/types/models';
-import { Screen, Card, Badge } from '@/components/ui';
+import { Screen, Card, Badge, LoadingState, EmptyState } from '@/components/ui';
 import { Hammer, Calendar, CircleDollarSign } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -51,9 +51,7 @@ export default function ClientProjectsScreen() {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#6366F1" size="large" />
-        </View>
+        <LoadingState />
       ) : (
         <FlatList
           data={projects}
@@ -95,15 +93,11 @@ export default function ClientProjectsScreen() {
             );
           }}
           ListEmptyComponent={
-            <View className="items-center justify-center mt-20">
-              <View className="w-20 h-20 bg-border/30 rounded-full items-center justify-center mb-6">
-                <Hammer size={40} color={isDark ? '#94A3B8' : '#64748B'} strokeWidth={1.5} />
-              </View>
-              <Text className="text-text font-bold text-xl mb-2">Sin proyectos activos</Text>
-              <Text className="text-muted-text text-center px-4 leading-relaxed">
-                Cuando aceptes un presupuesto de un profesional, aparecerá aquí.
-              </Text>
-            </View>
+            <EmptyState
+              icon={<Hammer size={40} color="#6366F1" />}
+              title="Sin proyectos activos"
+              description="Cuando aceptes un presupuesto de un profesional, aparecerá aquí."
+            />
           }
         />
       )}

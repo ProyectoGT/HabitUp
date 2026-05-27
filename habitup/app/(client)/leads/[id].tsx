@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { quotesService } from '@/services/quotes.service';
 import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
-import { Screen, Card, Badge, Button } from '@/components/ui';
+import { Screen, Card, Badge, Button, LoadingState, NotFoundState, EmptyState, ErrorState } from '@/components/ui';
 import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, Check, X, Inbox } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -94,14 +94,13 @@ export default function ClientLeadDetailScreen() {
   };
 
   if (isLoading) return (
-    <Screen safeArea className="items-center justify-center">
-      <ActivityIndicator color="#6366F1" size="large" />
+    <Screen safeArea>
+      <LoadingState />
     </Screen>
   );
   if (!lead) return (
-    <Screen safeArea className="items-center justify-center p-6">
-      <Text className="text-muted-text text-lg text-center">Solicitud no encontrada</Text>
-      <Button label="Volver" variant="outline" onPress={() => router.back()} className="mt-4" />
+    <Screen safeArea>
+      <NotFoundState message="Solicitud no encontrada" onBack={() => router.back()} />
     </Screen>
   );
 
@@ -149,13 +148,11 @@ export default function ClientLeadDetailScreen() {
             </Text>
 
             {quotes.length === 0 ? (
-              <View className="bg-surface rounded-3xl border border-dashed border-border p-10 items-center">
-                <View className="w-16 h-16 bg-primary/10 rounded-full items-center justify-center mb-4">
-                  <Inbox size={32} color="#6366F1" />
-                </View>
-                <Text className="text-text font-bold text-center mb-1">Aún no hay presupuestos</Text>
-                <Text className="text-muted-text text-center text-sm">Los profesionales te enviarán ofertas pronto.</Text>
-              </View>
+              <EmptyState
+                icon={<Inbox size={32} color="#6366F1" />}
+                title="Aún no hay presupuestos"
+                description="Los profesionales te enviarán ofertas pronto."
+              />
             ) : (
               quotes.map((quote) => (
                 <QuoteCard

@@ -13,6 +13,7 @@ export type Project = Database['public']['Tables']['projects']['Row'];
 export type Message = Database['public']['Tables']['messages']['Row'];
 export type Review = Database['public']['Tables']['reviews']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
+export type PortfolioItem = Database['public']['Tables']['portfolio_items']['Row'];
 
 // ═════════════════════════════════════════════════════════
 // Insert / Update helpers

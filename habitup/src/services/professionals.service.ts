@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
-import type { ProfessionalProfile, ProfessionalProfileWithUser, Category } from '@/types/models';
+import type { ProfessionalProfile, ProfessionalProfileWithUser, Category, LeadWithCategoryAndClient } from '@/types/models';
 
 export interface StripeOnboardingStatus {
   accountId: string | null;
@@ -175,6 +175,88 @@ export const professionalsService = {
       .order('name');
     if (error) throw error;
     return (data ?? []) as Category[];
+  },
+
+  async getDashboardStats(professionalId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { data: categories } = await supabase
+      .from('professional_categories')
+      .select('category_id')
+      .eq('professional_id', professionalId);
+
+    const categoryIds = (categories ?? []).map((c: { category_id: string }) => c.category_id);
+
+    const [projectsResult, activeProjectsResult, upcomingResult] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('agreed_price')
+        .eq('professional_id', professionalId)
+        .gte('created_at', startOfMonth.toISOString()),
+      supabase
+        .from('projects')
+        .select('id', { count: 'exact' })
+        .eq('professional_id', professionalId)
+        .in('status', ['en_curso', 'pendiente_finalizacion']),
+      supabase
+        .from('projects')
+        .select('id, title, start_date, status')
+        .eq('professional_id', professionalId)
+        .in('status', ['pendiente', 'en_curso'])
+        .gte('start_date', new Date().toISOString().slice(0, 10))
+        .order('start_date', { ascending: true })
+        .limit(5),
+    ]);
+
+    const { data: profile } = await supabase
+      .from('professional_profiles')
+      .select('location_city')
+      .eq('id', professionalId)
+      .single();
+
+    let countQuery = supabase
+      .from('leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'activo');
+
+    let listQuery = supabase
+      .from('leads')
+      .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')
+      .eq('status', 'activo')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (categoryIds.length > 0) {
+      countQuery = countQuery.in('category_id', categoryIds);
+      listQuery = listQuery.in('category_id', categoryIds);
+    }
+
+    if (profile?.location_city) {
+      countQuery = countQuery.eq('location_city', profile.location_city);
+      listQuery = listQuery.eq('location_city', profile.location_city);
+    }
+
+    const [leadsResult, recentLeadsResult] = await Promise.all([
+      countQuery,
+      listQuery,
+    ]);
+
+    const monthlyIncome = (projectsResult.data ?? []).reduce((sum: number, p: { agreed_price: number }) => sum + (p.agreed_price ?? 0), 0);
+    const activeProjects = activeProjectsResult.count ?? 0;
+    const availableLeads = leadsResult.count ?? 0;
+
+    return {
+      monthlyIncome,
+      activeProjects,
+      availableLeads,
+      recentLeads: (recentLeadsResult.data ?? []) as LeadWithCategoryAndClient[],
+      upcoming: (upcomingResult.data ?? []) as { id: string; title: string; start_date: string; status: string }[],
+    };
   },
 
   async getMyCategories(professionalId: string): Promise<Category[]> {

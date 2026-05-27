@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/services/supabase';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Project } from '@/types/models';
-import { Screen, Card, Badge } from '@/components/ui';
-import { Hammer, ArrowLeft, Calendar, CircleDollarSign } from 'lucide-react-native';
+import { Screen, Card, Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Hammer, ArrowLeft, Calendar, CircleDollarSign, Filter } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const STATUS_STYLE: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
@@ -17,12 +17,33 @@ const STATUS_STYLE: Record<string, { label: string; variant: 'warning' | 'info' 
   cancelado:   { label: 'Cancelado',    variant: 'error' },
 };
 
+const FILTERS = [
+  { key: 'all', label: 'Todas' },
+  { key: 'active', label: 'Activas' },
+  { key: 'completed', label: 'Completadas' },
+  { key: 'cancelled', label: 'Canceladas' },
+] as const;
+
+type FilterKey = (typeof FILTERS)[number]['key'];
+
+const ACTIVE_STATUSES = ['pendiente', 'en_curso', 'pendiente_finalizacion', 'pausado'];
+
+function matchFilter(project: Project, filter: FilterKey): boolean {
+  switch (filter) {
+    case 'all': return true;
+    case 'active': return ACTIVE_STATUSES.includes(project.status);
+    case 'completed': return project.status === 'completado';
+    case 'cancelled': return project.status === 'cancelado';
+  }
+}
+
 export default function ProfessionalProjectsScreen() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -44,24 +65,58 @@ export default function ProfessionalProjectsScreen() {
     setRefreshing(false);
   };
 
+  const filtered = useMemo(
+    () => projects.filter((p) => matchFilter(p, activeFilter)),
+    [projects, activeFilter],
+  );
+
   return (
     <Screen safeArea={false} className="flex-1">
-      <View className="bg-surface px-6 pt-16 pb-6 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-3xl z-10">
+      <View className="bg-surface px-6 pt-16 pb-4 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-3xl z-10">
         <TouchableOpacity onPress={() => router.back()} className="mb-4 flex-row items-center -ml-1">
           <ArrowLeft size={20} color="#6366F1" />
           <Text className="text-primary font-semibold text-base ml-2">Volver</Text>
         </TouchableOpacity>
         <Text className="text-2xl font-extrabold text-text leading-tight mb-1">Mis proyectos</Text>
         <Text className="text-muted-text text-sm font-medium">Gestiona tus trabajos en curso y finalizados</Text>
+
+        {/* Filtros */}
+        <View className="flex-row gap-2 mt-4">
+          {FILTERS.map((f) => {
+            const isActive = activeFilter === f.key;
+            const count = f.key === 'all'
+              ? projects.length
+              : projects.filter((p) => matchFilter(p, f.key)).length;
+            return (
+              <TouchableOpacity
+                key={f.key}
+                onPress={() => setActiveFilter(f.key)}
+                activeOpacity={0.7}
+                className={`px-4 py-2 rounded-full border flex-row items-center gap-1.5 ${
+                  isActive ? 'bg-primary border-primary' : 'bg-surface border-border'
+                }`}
+              >
+                <Text className={`text-xs font-bold ${isActive ? 'text-white' : 'text-muted-text'}`}>
+                  {f.label}
+                </Text>
+                <View className={`min-w-[18px] h-[18px] rounded-full items-center justify-center px-1 ${
+                  isActive ? 'bg-white/20' : 'bg-border/50'
+                }`}>
+                  <Text className={`text-[10px] font-bold ${isActive ? 'text-white' : 'text-muted-text'}`}>
+                    {count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#6366F1" size="large" />
-        </View>
+        <LoadingState />
       ) : (
         <FlatList
-          data={projects}
+          data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-6 pt-6 pb-10 flex-grow"
           showsVerticalScrollIndicator={false}
@@ -101,15 +156,11 @@ export default function ProfessionalProjectsScreen() {
             );
           }}
           ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-20 px-4">
-              <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-6">
-                <Hammer size={40} color="#6366F1" strokeWidth={1.5} />
-              </View>
-              <Text className="text-xl font-bold text-text mb-2 text-center">Sin proyectos activos</Text>
-              <Text className="text-muted-text text-center leading-relaxed">
-                Aquí aparecerán los proyectos en los que el cliente haya aceptado tu presupuesto.
-              </Text>
-            </View>
+            <EmptyState
+              icon={<Hammer size={40} color="#6366F1" />}
+              title="Sin proyectos activos"
+              description={activeFilter === 'all' ? 'Aquí aparecerán los proyectos en los que el cliente haya aceptado tu presupuesto.' : 'No hay proyectos en esta categoría.'}
+            />
           }
         />
       )}

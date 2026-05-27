@@ -11,8 +11,8 @@ import { professionalsService } from '@/services/professionals.service';
 import { paymentsService } from '@/services/payments.service';
 import { supabase } from '@/services/supabase';
 import type { Category } from '@/types/models';
-import { Screen, Card, Button, Input, Badge } from '@/components/ui';
-import { Save, LogOut, CheckCircle2, XCircle, Clock, AlertTriangle, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
+import { Screen, Card, Button, Input, Badge, VerifiedBadge, LoadingState } from '@/components/ui';
+import { Save, LogOut, CheckCircle2, XCircle, Clock, AlertTriangle, ShieldCheck, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
@@ -37,13 +37,15 @@ export default function ProfessionalProfileScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
   useEffect(() => {
-    professionalsService.getCategories().then(setAllCategories);
-    if (professionalProfile) {
-      professionalsService
-        .getMyCategories(professionalProfile.id)
-        .then((cats) => setSelectedCategoryIds(cats.map((c) => c.id)));
-    }
+    Promise.all([
+      professionalsService.getCategories().then(setAllCategories),
+      professionalProfile
+        ? professionalsService.getMyCategories(professionalProfile.id).then((cats) => setSelectedCategoryIds(cats.map((c) => c.id)))
+        : Promise.resolve(),
+    ]).finally(() => setLoadingProfile(false));
   }, []);
 
   const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, setError } =
@@ -60,6 +62,14 @@ export default function ProfessionalProfileScreen() {
         instagram_url: professionalProfile?.instagram_url ?? '',
       },
     });
+
+  if (loadingProfile) {
+    return (
+      <Screen safeArea={false} className="flex-1">
+        <LoadingState message="Cargando perfil..." />
+      </Screen>
+    );
+  }
 
   const onSave = async (data: FormData) => {
     try {
@@ -82,6 +92,36 @@ export default function ProfessionalProfileScreen() {
 
   const [connectLoading, setConnectLoading] = useState(false);
 
+  const waitForStripeStatus = (profileId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const channel = supabase
+        .channel('stripe-status')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'professional_profiles',
+            filter: `id=eq.${profileId}`,
+          },
+          (payload) => {
+            const newStatus = payload.new as { stripe_account_status?: string };
+            if (newStatus.stripe_account_status && newStatus.stripe_account_status !== 'not_created') {
+              supabase.removeChannel(channel);
+              resolve();
+            }
+          },
+        )
+        .subscribe();
+
+      // Fallback: resolver después de 30s aunque el webhook no llegue
+      setTimeout(() => {
+        supabase.removeChannel(channel);
+        resolve();
+      }, 30000);
+    });
+  };
+
   const onConnectStripe = async () => {
     setConnectLoading(true);
     try {
@@ -90,8 +130,9 @@ export default function ProfessionalProfileScreen() {
         setProfessionalProfile({ ...professionalProfile, stripe_account_id: account_id });
       }
       await WebBrowser.openBrowserAsync(url);
-      // Esperar a que Stripe procese y envíe webhook antes de recargar
-      await new Promise(r => setTimeout(r, 2000));
+      if (professionalProfile) {
+        await waitForStripeStatus(professionalProfile.id);
+      }
       const updated = await professionalsService.getMyProfile();
       if (updated) setProfessionalProfile(updated);
     } catch (e) {
@@ -226,6 +267,56 @@ export default function ProfessionalProfileScreen() {
             })}
           </View>
         </SectionCard>
+
+        {/* Verificación de identidad */}
+        {professionalProfile && typeof professionalProfile.nif_cif_verified === 'boolean' && (
+          <SectionCard title="Verificación de identidad" icon={<ShieldCheck size={20} color="#10B981" />}>
+            <View className="gap-4">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-text">Estado de verificación</Text>
+                  <Text className="text-xs text-muted-text mt-0.5">
+                    Verifica tu identidad para generar más confianza
+                  </Text>
+                </View>
+                <VerifiedBadge
+                  level={
+                    (professionalProfile.nif_cif_verified && professionalProfile.documents_verified)
+                      ? 'verified'
+                      : (professionalProfile.nif_cif_verified || professionalProfile.documents_verified)
+                        ? 'partial'
+                        : 'none'
+                  }
+                />
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-text">NIF/CIF verificado</Text>
+                {professionalProfile.nif_cif_verified ? (
+                  <CheckCircle2 size={18} color="#10B981" />
+                ) : (
+                  <XCircle size={18} color="#EF4444" />
+                )}
+              </View>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-text">Documentación verificada</Text>
+                {professionalProfile.documents_verified ? (
+                  <CheckCircle2 size={18} color="#10B981" />
+                ) : (
+                  <XCircle size={18} color="#EF4444" />
+                )}
+              </View>
+              {!professionalProfile.documents_verified && (
+                <Button
+                  label="Subir documentos"
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Camera size={16} />}
+                  onPress={() => router.push('/professional/verification')}
+                />
+              )}
+            </View>
+          </SectionCard>
+        )}
 
         {/* Redes sociales */}
         <SectionCard title="Web y redes sociales" icon={<LinkIcon size={20} color="#6366F1" />}>

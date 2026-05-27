@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   TouchableOpacity,
@@ -12,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { LeadCard } from '@/components/leads';
 import type { Lead, LeadStatus } from '@/types/models';
-import { Screen } from '@/components/ui';
+import { Screen, LoadingState, EmptyState, ErrorState } from '@/components/ui';
 import { ClipboardList, Plus } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -144,19 +143,9 @@ export default function ClientLeadsScreen() {
 
       {/* ── Content ── */}
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#6366F1" size="large" />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-error text-center bg-error/10 p-4 rounded-xl w-full">{error}</Text>
-          <TouchableOpacity
-            onPress={loadLeads}
-            className="mt-4 py-3 px-6 border-2 border-primary rounded-2xl"
-          >
-            <Text className="text-primary font-semibold">Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorState message={error} onRetry={loadLeads} />
       ) : (
         <FlatList
           data={filtered}
@@ -174,44 +163,12 @@ export default function ClientLeadsScreen() {
             <LeadCard lead={item} onPress={() => router.push(`/(client)/leads/${item.id}`)} />
           )}
           ListEmptyComponent={
-            <View className="items-center justify-center mt-20">
-              <View
-                className="w-20 h-20 rounded-full items-center justify-center mb-6"
-                style={{ backgroundColor: isDark ? '#1E2433' : '#F1F5F9' }}
-              >
-                <ClipboardList size={38} color={isDark ? '#64748B' : '#94A3B8'} strokeWidth={1.5} />
-              </View>
-              <Text className="text-text font-bold text-xl mb-2">
-                {filter === 'all' ? 'Sin solicitudes todavía' : 'Sin resultados'}
-              </Text>
-              <Text className="text-muted-text text-center px-6 leading-relaxed">
-                {filter === 'all'
-                  ? 'Crea una solicitud para recibir presupuestos de los mejores profesionales.'
-                  : 'No tienes solicitudes con este estado aún.'}
-              </Text>
-              {filter === 'all' && (
-                <TouchableOpacity
-                  onPress={() => router.push('/(client)/leads/create')}
-                  activeOpacity={0.85}
-                  style={{
-                    marginTop: 28,
-                    backgroundColor: '#6366F1',
-                    paddingVertical: 14,
-                    paddingHorizontal: 32,
-                    borderRadius: 16,
-                    shadowColor: '#6366F1',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 5,
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-                    Crear solicitud
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <EmptyState
+              icon={<ClipboardList size={38} color="#6366F1" />}
+              title={filter === 'all' ? 'Sin solicitudes todavía' : 'Sin resultados'}
+              description={filter === 'all' ? 'Crea una solicitud para recibir presupuestos de los mejores profesionales.' : 'No tienes solicitudes con este estado aún.'}
+              action={filter === 'all' ? { label: 'Crear solicitud', onPress: () => router.push('/(client)/leads/create') } : undefined}
+            />
           }
         />
       )}

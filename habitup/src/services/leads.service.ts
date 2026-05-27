@@ -36,12 +36,38 @@ export const leadsService = {
     return data as Lead;
   },
 
-  async getAvailableForProfessional() {
-    const { data, error } = await supabase
+  async getAvailableForProfessional(): Promise<Lead[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data: profile, error: profileError } = await supabase
+      .from('professional_profiles')
+      .select('id, location_city, location_region, service_radius_km')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) return [];
+
+    const { data: categories } = await supabase
+      .from('professional_categories')
+      .select('category_id')
+      .eq('professional_id', profile.id);
+
+    const categoryIds = (categories ?? []).map((c: { category_id: string }) => c.category_id);
+    if (categoryIds.length === 0) return [];
+
+    let query = supabase
       .from('leads')
       .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')
       .eq('status', LEAD_STATUS.ACTIVE)
+      .in('category_id', categoryIds)
       .order('created_at', { ascending: false });
+
+    if (profile.location_city) {
+      query = query.eq('location_city', profile.location_city);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as Lead[];
   },

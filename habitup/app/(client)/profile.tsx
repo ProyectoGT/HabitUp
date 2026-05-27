@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
 import { supabase } from '@/services/supabase';
-import { Screen, Card, Input, Button, Avatar } from '@/components/ui';
+import { Screen, Card, Input, Button, Avatar, LoadingState, ErrorState } from '@/components/ui';
 import {
   User, Phone, AlignLeft, Mail, LogOut,
   ChevronRight, Bell, CreditCard, Shield,
@@ -49,6 +49,18 @@ export default function ClientProfileScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setIsLoading(false);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Error al cargar perfil');
+      setIsLoading(false);
+    }
+  }, []);
+
   const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, setError } =
     useForm<FormData>({
       resolver: zodResolver(schema),
@@ -84,6 +96,22 @@ export default function ClientProfileScreen() {
       },
     ]);
   };
+
+  if (isLoading) {
+    return (
+      <Screen safeArea={false} className="flex-1">
+        <LoadingState />
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen safeArea={false} className="flex-1">
+        <ErrorState message={loadError} onRetry={() => { setIsLoading(true); setLoadError(null); }} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeArea={false} className="flex-1">

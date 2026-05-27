@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
-import { Avatar, Badge } from '@/components/ui';
+import { Screen, Card, Button, Badge, Avatar, LoadingState, EmptyState, ErrorState } from '@/components/ui';
 import {
   Bell, TrendingUp, Clock, CheckCircle2,
-  ArrowRight, Sparkles, Plus,
+  ArrowRight, Sparkles, Plus, Inbox, Users,
 } from 'lucide-react-native';
 
 const STATS = [
@@ -39,8 +39,45 @@ export default function ClientHomeScreen() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const firstName = user?.full_name?.split(' ')[0] || 'Usuario';
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState(STATS);
+  const [recentActivity, setRecentActivity] = useState(RECENT_ACTIVITY);
+  const [suggested, setSuggested] = useState(SUGGESTED);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setIsLoading(true);
+    setError(null);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+  };
+
+  if (isLoading) {
+    return (
+      <Screen safeArea={false}>
+        <LoadingState message="Cargando tu panel..." />
+      </Screen>
+    );
+  }
+
+  if (error) {
+    return (
+      <Screen safeArea={false}>
+        <ErrorState message={error} onRetry={handleRetry} />
+      </Screen>
+    );
+  }
+
   return (
-    <View className="flex-1 bg-background">
+    <Screen safeArea={false}>
       {/* ── Gradient header ── */}
       <LinearGradient
         colors={['#6366F1', '#8B5CF6']}
@@ -88,7 +125,7 @@ export default function ClientHomeScreen() {
 
         {/* Stats row */}
         <View className="flex-row gap-3">
-          {STATS.map((stat) => (
+          {stats.map((stat) => (
             <View
               key={stat.label}
               style={{
@@ -115,7 +152,7 @@ export default function ClientHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Actividad reciente ── */}
-        <View className="bg-surface rounded-2xl border border-border mb-5 overflow-hidden">
+        <Card variant="outlined" className="mb-5 p-0 overflow-hidden">
           <View className="flex-row items-center justify-between px-5 pt-5 pb-4 border-b border-border">
             <Text className="text-base font-bold text-text">Actividad reciente</Text>
             <TouchableOpacity onPress={() => router.push('/(client)/leads')}>
@@ -123,35 +160,44 @@ export default function ClientHomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {RECENT_ACTIVITY.map((item, idx) => {
-            const cfg = STATUS_CONFIG[item.status] || { label: item.status, variant: 'default' as const };
-            return (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => router.push('/(client)/leads')}
-                activeOpacity={0.7}
-                className={`flex-row items-center gap-3 px-5 py-4 ${idx < RECENT_ACTIVITY.length - 1 ? 'border-b border-border' : ''}`}
-              >
-                <Avatar fallback={item.professional} size="sm" />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text className="font-semibold text-text text-sm" numberOfLines={1}>
-                    {item.professional}
-                  </Text>
-                  <Text className="text-muted-text text-xs mt-0.5" numberOfLines={1}>
-                    {item.service}
-                  </Text>
-                </View>
-                <View className="items-end" style={{ gap: 4 }}>
-                  <Badge label={cfg.label} variant={cfg.variant} size="sm" />
-                  <Text className="text-muted-text text-xs">{item.date}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+          {recentActivity.length > 0 ? (
+            recentActivity.map((item, idx) => {
+              const cfg = STATUS_CONFIG[item.status] || { label: item.status, variant: 'default' as const };
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => router.push('/(client)/leads')}
+                  activeOpacity={0.7}
+                  className={`flex-row items-center gap-3 px-5 py-4 ${idx < recentActivity.length - 1 ? 'border-b border-border' : ''}`}
+                >
+                  <Avatar fallback={item.professional} size="sm" />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text className="font-semibold text-text text-sm" numberOfLines={1}>
+                      {item.professional}
+                    </Text>
+                    <Text className="text-muted-text text-xs mt-0.5" numberOfLines={1}>
+                      {item.service}
+                    </Text>
+                  </View>
+                  <View className="items-end" style={{ gap: 4 }}>
+                    <Badge label={cfg.label} variant={cfg.variant} size="sm" />
+                    <Text className="text-muted-text text-xs">{item.date}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <EmptyState
+              icon={<Inbox size={32} color="#6366F1" />}
+              title="Sin actividad reciente"
+              description="No tienes solicitudes o proyectos aún."
+              action={{ label: 'Crear solicitud', onPress: () => router.push('/(client)/leads/create') }}
+            />
+          )}
+        </Card>
 
         {/* ── Recomendados para ti ── */}
-        <View className="bg-surface rounded-2xl border border-border mb-5 overflow-hidden">
+        <Card variant="outlined" className="mb-5 p-0 overflow-hidden">
           <View className="flex-row items-center justify-between px-5 pt-5 pb-4 border-b border-border">
             <View>
               <Text className="text-base font-bold text-text">Recomendados para ti</Text>
@@ -160,58 +206,59 @@ export default function ClientHomeScreen() {
             <Sparkles size={20} color="#F59E0B" />
           </View>
 
-          {SUGGESTED.map((prof, idx) => (
-            <TouchableOpacity
-              key={prof.id}
-              onPress={() => router.push(`/(client)/professional/${prof.id}`)}
-              activeOpacity={0.7}
-              className={`flex-row items-center gap-3 px-5 py-4 ${idx < SUGGESTED.length - 1 ? 'border-b border-border' : ''}`}
-            >
-              <Avatar fallback={prof.name} size="md" />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text className="font-semibold text-text" numberOfLines={1}>{prof.name}</Text>
-                <Text className="text-muted-text text-sm mt-0.5" numberOfLines={1}>{prof.specialty}</Text>
-                <View className="flex-row items-center gap-2 mt-1">
-                  <Text className="text-warning text-xs font-semibold">★ {prof.rating}</Text>
-                  <Text className="text-muted-text text-xs">{prof.price}</Text>
+          {suggested.length > 0 ? (
+            suggested.map((prof, idx) => (
+              <TouchableOpacity
+                key={prof.id}
+                onPress={() => router.push(`/(client)/professional/${prof.id}`)}
+                activeOpacity={0.7}
+                className={`flex-row items-center gap-3 px-5 py-4 ${idx < suggested.length - 1 ? 'border-b border-border' : ''}`}
+              >
+                <Avatar fallback={prof.name} size="md" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text className="font-semibold text-text" numberOfLines={1}>{prof.name}</Text>
+                  <Text className="text-muted-text text-sm mt-0.5" numberOfLines={1}>{prof.specialty}</Text>
+                  <View className="flex-row items-center gap-2 mt-1">
+                    <Text className="text-warning text-xs font-semibold">★ {prof.rating}</Text>
+                    <Text className="text-muted-text text-xs">{prof.price}</Text>
+                  </View>
                 </View>
-              </View>
-              <ArrowRight size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          ))}
-        </View>
+                <ArrowRight size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <EmptyState
+              icon={<Users size={32} color="#6366F1" />}
+              title="No hay recomendaciones"
+              description="Por ahora no tenemos profesionales sugeridos para ti."
+            />
+          )}
+        </Card>
 
         {/* ── CTA ── */}
-        <TouchableOpacity
+        <Button
+          label="Explorar más profesionales"
           onPress={() => router.push('/(client)/search')}
-          activeOpacity={0.85}
+          size="lg"
+          className="w-full shadow-lg"
           style={{
-            backgroundColor: '#6366F1',
-            paddingVertical: 16,
-            borderRadius: 16,
-            alignItems: 'center',
             shadowColor: '#6366F1',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.35,
             shadowRadius: 10,
             elevation: 6,
           }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-            Explorar más profesionales
-          </Text>
-        </TouchableOpacity>
+        />
 
-        {/* ── Nueva solicitud FAB-like shortcut ── */}
-        <TouchableOpacity
+        {/* ── Nueva solicitud shortcut ── */}
+        <Button
+          label="Nueva solicitud"
           onPress={() => router.push('/(client)/leads/create')}
-          activeOpacity={0.8}
-          className="flex-row items-center justify-center gap-2 mt-3 py-4 rounded-2xl border-2 border-primary/30 bg-primary/5"
-        >
-          <Plus size={18} color="#6366F1" />
-          <Text className="text-primary font-semibold text-sm">Nueva solicitud</Text>
-        </TouchableOpacity>
+          variant="outline"
+          leftIcon={<Plus size={18} color="#6366F1" />}
+          className="w-full mt-3"
+        />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

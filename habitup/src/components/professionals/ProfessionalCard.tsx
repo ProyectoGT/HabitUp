@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { formatRating } from '@/utils/formatters';
-import { Card, Avatar, Badge } from '@/components/ui';
-import { Star, MapPin } from 'lucide-react-native';
+import { Card, Avatar, Badge, VerifiedBadge } from '@/components/ui';
+import { ShieldCheck, Star, MapPin } from 'lucide-react-native';
 
 export interface ProfessionalCardData {
   id: string;
@@ -19,6 +19,8 @@ export interface ProfessionalCardData {
   categories: string | null;
   is_active: boolean;
   accepts_new_leads: boolean;
+  nif_cif_verified?: boolean;
+  documents_verified?: boolean;
 }
 
 interface Props {
@@ -30,7 +32,11 @@ export function ProfessionalCard({ professional, onPress }: Props) {
   const {
     full_name, avatar_url, company_name, description, avg_rating,
     total_reviews, location_city, categories, accepts_new_leads,
+    nif_cif_verified, documents_verified,
   } = professional;
+
+  const isVerified = nif_cif_verified && documents_verified && (total_reviews ?? 0) > 0;
+  const isPartiallyVerified = nif_cif_verified || documents_verified;
 
   return (
     <Card onPress={onPress} className="mb-4">
@@ -43,9 +49,15 @@ export function ProfessionalCard({ professional, onPress }: Props) {
 
         <View className="flex-1 justify-center">
           <View className="flex-row items-start justify-between">
-            <Text className="text-lg font-bold text-text mb-0.5" numberOfLines={1}>
-              {company_name ?? full_name}
-            </Text>
+            <View className="flex-1 mr-2">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-lg font-bold text-text mb-0.5" numberOfLines={1}>
+                  {company_name ?? full_name}
+                </Text>
+                {isVerified && <VerifiedBadge level="verified" size="sm" />}
+                {!isVerified && isPartiallyVerified && <VerifiedBadge level="partial" size="sm" />}
+              </View>
+            </View>
             {!accepts_new_leads && (
               <Badge label="No disponible" variant="error" size="sm" />
             )}

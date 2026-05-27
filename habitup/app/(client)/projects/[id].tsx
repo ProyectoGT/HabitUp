@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity,
   Alert, RefreshControl, Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,7 +14,7 @@ import { paymentsService } from '@/services/payments.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PROJECT_STATUS, PAYMENT_STATUS } from '@/utils/constants';
 import type { Review, ProjectWithDetails } from '@/types/models';
-import { Screen, Card, Badge, Button, Input } from '@/components/ui';
+import { Screen, Card, Badge, Button, Input, LoadingState, NotFoundState, ErrorState } from '@/components/ui';
 import { ArrowLeft, MessageCircle, Star, X, CreditCard, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -140,14 +140,13 @@ export default function ClientProjectDetailScreen() {
   };
 
   if (isLoading) return (
-    <Screen safeArea className="items-center justify-center">
-      <ActivityIndicator color="#6366F1" size="large" />
+    <Screen safeArea>
+      <LoadingState />
     </Screen>
   );
   if (!project) return (
-    <Screen safeArea className="items-center justify-center">
-      <Text className="text-muted-text text-lg">Proyecto no encontrado</Text>
-      <Button label="Volver" variant="outline" onPress={() => router.back()} className="mt-4" />
+    <Screen safeArea>
+      <NotFoundState message="Proyecto no encontrado" onBack={() => router.back()} />
     </Screen>
   );
 

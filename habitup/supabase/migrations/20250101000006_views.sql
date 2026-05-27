@@ -40,6 +40,8 @@ SELECT
   pp.service_radius_km,
   pp.is_active,
   pp.accepts_new_leads,
+  pp.nif_cif_verified,
+  pp.documents_verified,
   pp.website_url,
   pp.instagram_url,
   pp.facebook_url,

@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { formatRelativeTime, formatCurrency } from '@/utils/formatters';
 import type { Lead } from '@/types/models';
 import { Card, Badge } from '@/components/ui';
-import { MapPin, Clock, CircleDollarSign } from 'lucide-react-native';
+import { MapPin, Clock, CircleDollarSign, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'default' }> = {
@@ -24,9 +24,10 @@ interface Props {
   lead: Lead & { categories?: { name: string } };
   onPress: () => void;
   showClientName?: boolean;
+  hasQuoted?: boolean;
 }
 
-export function LeadCard({ lead, onPress }: Props) {
+export function LeadCard({ lead, onPress, hasQuoted }: Props) {
   const status = STATUS_LABEL[lead.status] ?? { label: lead.status, variant: 'default' };
   const urgency = URGENCY_LABEL[lead.urgency] ?? { text: lead.urgency, color: '#64748B' };
   
@@ -39,7 +40,15 @@ export function LeadCard({ lead, onPress }: Props) {
         <Text className="text-lg font-bold text-text flex-1 mr-3 leading-tight" numberOfLines={2}>
           {lead.title}
         </Text>
-        <Badge label={status.label} variant={status.variant} />
+        <View className="flex-row items-center gap-2">
+          {hasQuoted && (
+            <View className="flex-row items-center bg-primary/10 px-2 py-1 rounded-md border border-primary/20">
+              <CheckCircle2 size={12} color="#6366F1" />
+              <Text className="text-[10px] font-bold text-primary ml-1">Quoteado</Text>
+            </View>
+          )}
+          <Badge label={status.label} variant={status.variant} />
+        </View>
       </View>
 
       <Text className="text-sm text-muted-text mb-4 leading-relaxed" numberOfLines={2}>

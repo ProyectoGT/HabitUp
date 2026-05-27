@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity,
   Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,8 +12,8 @@ import { quotesService } from '@/services/quotes.service';
 import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate, formatRelativeTime } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
-import { Screen, Card, Button, Input, Badge } from '@/components/ui';
-import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, AlertTriangle, X, SendHorizontal, FileText, CheckCircle2 } from 'lucide-react-native';
+import { Screen, Card, Button, Input, Badge, Avatar, LoadingState, NotFoundState, ErrorState } from '@/components/ui';
+import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, AlertTriangle, X, SendHorizontal, FileText, CheckCircle2, User } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const quoteSchema = z.object({
@@ -69,15 +69,14 @@ export default function ProfessionalLeadDetailScreen() {
   };
 
   if (isLoading) return (
-    <Screen safeArea className="items-center justify-center">
-      <ActivityIndicator color="#6366F1" size="large" />
+    <Screen safeArea>
+      <LoadingState />
     </Screen>
   );
   
   if (!lead) return (
-    <Screen safeArea className="items-center justify-center p-6">
-      <Text className="text-muted-text text-lg text-center">Lead no encontrado</Text>
-      <Button label="Volver" variant="outline" onPress={() => router.back()} className="mt-4" />
+    <Screen safeArea>
+      <NotFoundState message="Lead no encontrado" onBack={() => router.back()} />
     </Screen>
   );
 
@@ -104,6 +103,23 @@ export default function ProfessionalLeadDetailScreen() {
 
         {/* Detalle del lead */}
         <View className="px-6 pt-6 gap-6">
+          {/* Info del cliente */}
+          {(lead as any).users && (
+            <Card variant="elevated" className="border border-border/50">
+              <View className="flex-row items-center gap-4">
+                <Avatar
+                  url={(lead as any).users?.avatar_url ?? null}
+                  fallback={(lead as any).users?.full_name ?? 'Cliente'}
+                  size="md"
+                />
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-muted-text text-xs uppercase tracking-wider mb-0.5">Cliente</Text>
+                  <Text className="text-base font-bold text-text">{(lead as any).users?.full_name ?? 'Cliente'}</Text>
+                </View>
+              </View>
+            </Card>
+          )}
+
           <Card variant="flat" className="border border-border/50">
             <Text className="text-text leading-relaxed mb-5">{lead.description}</Text>
             

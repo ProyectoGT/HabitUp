@@ -8,8 +8,8 @@ import { useProfessionals } from '@/hooks/useProfessionals';
 import { ProfessionalCard } from '@/components/professionals';
 import { professionalsService } from '@/services/professionals.service';
 import type { Category } from '@/types/models';
-import { Screen, Input } from '@/components/ui';
-import { Search, MapPin, SlidersHorizontal } from 'lucide-react-native';
+import { Screen, Input, EmptyState, ErrorState } from '@/components/ui';
+import { Search, MapPin } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export default function SearchScreen() {
@@ -174,9 +174,7 @@ export default function SearchScreen() {
 
       {/* ── Results ── */}
       {error ? (
-        <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-error text-center bg-error/10 p-4 rounded-xl">{error}</Text>
-        </View>
+        <ErrorState message={error} onRetry={onSearch} />
       ) : (
         <FlatList
           data={results}
@@ -190,16 +188,11 @@ export default function SearchScreen() {
           )}
           ListEmptyComponent={
             isLoading ? null : (
-              <View className="items-center justify-center mt-20">
-                <View
-                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                  style={{ backgroundColor: isDark ? '#1E2433' : '#F1F5F9' }}
-                >
-                  <Search size={32} color={isDark ? '#64748B' : '#94A3B8'} />
-                </View>
-                <Text className="text-text font-bold text-lg mb-1">Sin resultados</Text>
-                <Text className="text-muted-text text-center">No encontramos profesionales con estos filtros.</Text>
-              </View>
+              <EmptyState
+                icon={<Search size={32} color="#94A3B8" />}
+                title="Sin resultados"
+                description="No encontramos profesionales con estos filtros."
+              />
             )
           }
           ListFooterComponent={

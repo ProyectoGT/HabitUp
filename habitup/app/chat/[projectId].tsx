@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, ActivityIndicator,
+  View, Text, FlatList,
   KeyboardAvoidingView, Platform, TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import type { Message } from '@/types/models';
-import { Screen } from '@/components/ui';
+import { Screen, LoadingState, EmptyState } from '@/components/ui';
 import { ArrowLeft, MessageSquareMore } from 'lucide-react-native';
 
 export default function ChatScreen() {
@@ -27,9 +27,19 @@ export default function ChatScreen() {
     recipientId,
   );
 
-  // Scroll al final cuando llegan mensajes nuevos
+  const hasScrolledRef = useRef(false);
+
+  // Scroll al fondo cuando cargan los mensajes iniciales
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 200);
+    }
+  }, [isLoading]);
+
+  // Scroll al final cuando llegan mensajes nuevos (después del inicial)
+  useEffect(() => {
+    if (messages.length > 0 && hasScrolledRef.current) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [messages.length]);
@@ -56,9 +66,7 @@ export default function ChatScreen() {
 
         {/* Mensajes */}
         {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="#6366F1" size="large" />
-          </View>
+          <LoadingState />
         ) : (
           <FlatList
             ref={listRef}
@@ -83,15 +91,11 @@ export default function ChatScreen() {
               );
             }}
             ListEmptyComponent={
-              <View className="flex-1 items-center justify-center py-20 px-6">
-                <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-6">
-                  <MessageSquareMore size={40} color="#6366F1" strokeWidth={1.5} />
-                </View>
-                <Text className="text-xl font-bold text-text mb-2 text-center">Sin mensajes</Text>
-                <Text className="text-muted-text text-center leading-relaxed">
-                  Envía un mensaje para comenzar la conversación sobre este proyecto.
-                </Text>
-              </View>
+              <EmptyState
+                icon={<MessageSquareMore size={40} color="#6366F1" />}
+                title="Sin mensajes"
+                description="Envía un mensaje para comenzar la conversación sobre este proyecto."
+              />
             }
             onContentSizeChange={() =>
               listRef.current?.scrollToEnd({ animated: false })
