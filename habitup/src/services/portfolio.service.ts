@@ -12,6 +12,17 @@ export interface CreatePortfolioParams {
 }
 
 export const portfolioService = {
+  async getByProfessional(professionalId: string): Promise<PortfolioItem[]> {
+    const { data, error } = await supabase
+      .from('portfolio_items')
+      .select('*, categories(name)')
+      .eq('professional_id', professionalId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as unknown as PortfolioItem[];
+  },
+
   async getMyItems(): Promise<PortfolioItem[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No autenticado');

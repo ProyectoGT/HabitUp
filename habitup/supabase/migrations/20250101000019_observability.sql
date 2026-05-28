@@ -49,13 +49,18 @@ CREATE INDEX IF NOT EXISTS idx_error_log_user_id
 
 ALTER TABLE public.error_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "error_log_service_role_only"
+-- Default-deny: only service_role (bypasses RLS) can access.
+-- Authenticated/anonymous users see and write nothing.
+CREATE POLICY "error_log_admin_access"
   ON public.error_log
-  USING (true)
-  WITH CHECK (true);
+  FOR SELECT
+  USING (
+    auth.role() = 'service_role'
+    OR (SELECT user_type FROM public.users WHERE id = auth.uid()) = 'admin'
+  );
 
-COMMENT ON POLICY "error_log_service_role_only" ON public.error_log IS
-  'Only service_role (Edge Functions, triggers) can access error_log.';
+COMMENT ON POLICY "error_log_admin_access" ON public.error_log IS
+  'Only service_role and admin users can read error_log. No INSERT/UPDATE/DELETE for end users.';
 
 -- ═══════════════════════════════════════════════════
 -- 2. event_log
@@ -88,10 +93,13 @@ CREATE INDEX IF NOT EXISTS idx_event_log_correlation_id
 
 ALTER TABLE public.event_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "event_log_service_role_only"
+CREATE POLICY "event_log_admin_access"
   ON public.event_log
-  USING (true)
-  WITH CHECK (true);
+  FOR SELECT
+  USING (
+    auth.role() = 'service_role'
+    OR (SELECT user_type FROM public.users WHERE id = auth.uid()) = 'admin'
+  );
 
-COMMENT ON POLICY "event_log_service_role_only" ON public.event_log IS
-  'Only service_role (Edge Functions, triggers) can access event_log.';
+COMMENT ON POLICY "event_log_admin_access" ON public.event_log IS
+  'Only service_role and admin users can read event_log. No INSERT/UPDATE/DELETE for end users.';

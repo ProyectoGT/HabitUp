@@ -28,11 +28,13 @@ export function usePublicProfile(professionalId: string): PublicProfile {
       professionalsService.getProfileById(professionalId),
       verificationService.getTrustSummary(professionalId),
       professionalsService.getMyCategories(professionalId),
+      portfolioService.getByProfessional(professionalId).catch(() => []),
     ])
-      .then(([prof, trust, cats]) => {
+      .then(([prof, trust, cats, items]) => {
         setProfile(prof);
         setTrustSummary(trust);
         setCategories(cats);
+        setPortfolioItems(items);
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : 'Error al cargar perfil');
