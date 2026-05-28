@@ -1,4 +1,4 @@
-# 🚀 GUÍA DE CONFIGURACIÓN - Supabase para Reforma360
+# Guía de Configuración — Supabase para HabitUp
 
 ## Tabla de Contenidos
 1. [Crear Proyecto en Supabase](#1-crear-proyecto-en-supabase)
@@ -20,309 +20,131 @@
 4. Verifica tu email
 
 ### Paso 1.2: Crear nuevo Proyecto
-1. En el dashboard, click en **"New Project"** (o el botón +)
+1. En el dashboard, click en **"New Project"**
 2. Rellena:
-   - **Project name:** `reforma360`
-   - **Database Password:** genera una contraseña segura (guárdala en 1Password/LastPass)
-   - **Region:** elige la más cercana (probablemente Europa/Ireland o Frankfurt)
+   - **Project name:** `habitup`
+   - **Database Password:** genera una contraseña segura
+   - **Region:** elige la más cercana (Europa/Ireland o Frankfurt)
    - **Pricing Plan:** Free (para empezar)
 3. Click **"Create new project"**
 
-⏳ Espera 2-5 minutos a que se cree la BD. Supabase te mostrará una página con el estado.
+⏳ Espera 2-5 minutos a que se cree la BD.
 
 ### Paso 1.3: Copiar credenciales
-Una vez listo, verás el dashboard. En la esquina inferior izquierda, haz click en el icono de engranaje (⚙️) → **API**.
-
-Copia y guarda en un fichero seguro:
+Una vez listo, ve a **Project Settings → API**. Copia y guarda:
 - **Project URL:** `https://xxxxx.supabase.co`
-- **Anon Key:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (key pública para el cliente)
-- **Service Role Key:** (no la uses desde la app, solo en backend)
+- **Anon Key:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (pública para el cliente)
+- **Service Role Key:** solo para Edge Functions, nunca en la app
 
 ---
 
 ## 2. Cargar el Esquema SQL
 
-### Paso 2.1: Ir al editor SQL
-En el dashboard de Supabase, en el menú izquierdo:
-- Click en **"SQL Editor"**
-- Click en **"+ New Query"**
+### Opción A: Desde cero (proyecto nuevo)
+Aplica las migraciones en orden desde el SQL Editor:
 
-### Paso 2.2: Pegar el esquema
-1. En `reforma360_schema.sql` (el archivo que creé), copia TODO el contenido
-2. Pégalo en el editor SQL de Supabase
-3. Click en **"RUN"** (o Cmd+Enter)
+1. `habitup/supabase/migrations/000_schema_base.sql`
+2. `habitup/supabase/migrations/001_add_push_notifications.sql`
+3. `habitup/supabase/migrations/002_mvp_core_loop.sql`
 
-⚠️ **Importante:** El script tiene comentarios. Si hay error, asegúrate de que no hay comandos incompletos.
+### Opción B: Schema completo (atajo)
+Si prefieres aplicar todo de una vez, usa `supabase/habitup_schema.sql` (incluye schema base + push notifications).
 
-### Paso 2.3: Verificar tablas creadas
-En el menú izquierdo, click en **"Table Editor"**. Deberías ver todas estas tablas:
-- users
-- professional_profiles
-- categories (ya con datos)
-- professional_categories
-- portfolio_items
-- leads
-- quotes
-- projects
-- payments
-- reviews
-- messages
-- commissions
-- verification_documents
-- favorites
-- notifications
-
-✅ Si ves todas, el esquema está ok.
-
-### Paso 2.4: Activar PostGIS (para búsqueda geoespacial)
-Es opcional pero **muy recomendado** para un marketplace de reformas.
-
-1. En Supabase, menú izquierdo → **"Extensions"**
-2. Busca **"PostGIS"**
-3. Click en ella y **"Enable Extension"**
-
-Esto te permite hacer búsquedas tipo "profesionales dentro de 20 km de mi ubicación".
+### Verificar tablas creadas
+En Table Editor deberías ver:
+- users, categories, professional_profiles, professional_categories
+- leads, quotes, projects, messages, reviews, notifications, portfolio_items
 
 ---
 
 ## 3. Configurar Autenticación
 
-### Paso 3.1: Providers (Google, Apple, Email/Password)
-En el menú izquierdo:
-- Click en **"Authentication"**
-- Click en **"Providers"**
+### Proveedores
+En **Authentication → Providers**:
 
-#### Habilitador Email/Password (ya está por defecto):
-1. Email/Password ya está habilitado
-2. Desplázate hasta **"Email"** y asegúrate de que está en ON
-3. En opciones, puedes habilitar **"Confirm email"** si quieres que confirmen el mail (recomendado para producción)
+- **Email/Password:** ya activo por defecto. Opcional: activa "Confirm email" para producción.
+- **Google:** sigue instrucciones para crear OAuth credentials en Google Cloud Console.
+- **Apple:** requiere Apple Developer account (puede esperar a v2).
 
-#### Habilitar Google (recomendado):
-1. Click en **"Google"**
-2. Sigue las instrucciones para crear credenciales OAuth en Google Cloud Console
-3. Pega **Client ID** y **Client Secret**
-4. Click **"Save"**
-
-#### Habilitar Apple (si tienes Mac):
-1. Click en **"Apple"**
-2. Necesitarás Apple Developer account
-3. Seguir instrucciones (es más complicado, puede esperar a v2)
-
-### Paso 3.2: JWT Secret
-Supabase genera esto automáticamente. No necesitas tocar nada. Es la clave que Supabase usa para firmar los tokens.
-
-### Paso 3.3: Redirect URLs
-En **"URL Configuration"** (dentro de Authentication):
-- **Site URL:** `http://localhost:8081` (para testing local con Expo)
-- **Redirect URLs (para producción):**
-  - `app://splash` (iOS deep link)
-  - `app+produción://splash` (Android deep link)
-  - Más adelante quando publiques
+### Redirect URLs
+En **URL Configuration**:
+- **Site URL:** `http://localhost:8081` (desarrollo local con Expo)
+- **Redirect URLs (producción):** las que genere el deploy de tu app
 
 ---
 
 ## 4. Storage para Imágenes
 
-### Paso 4.1: Crear buckets
-En el menú izquierdo:
-- Click en **"Storage"**
-- Click en **"Create bucket"**
+### Buckets
+Crea estos buckets en **Storage**:
 
-Crea estos buckets (nombres exactos):
+| Bucket | Público | Límite | Uso |
+|--------|---------|--------|-----|
+| `lead-photos` | No | 50 MB | Fotos de solicitudes |
+| `portfolio` | No | 50 MB | Portfolio de profesionales |
+| `verification-documents` | No | 10 MB | Documentos de verificación |
+| `avatars` | Sí | 5 MB | Fotos de perfil |
 
-1. **portfolio-images**
-   - Public: NO (las fotos necesitan autenticación para ver)
-   - File size limit: 50 MB
+### RLS para Storage
+Ejemplo para `portfolio` (ajusta para cada bucket):
 
-2. **lead-images**
-   - Public: NO
-   - File size limit: 50 MB
-
-3. **verification-documents**
-   - Public: NO (docs de verificación, muy privadas)
-   - File size limit: 10 MB
-
-4. **avatars**
-   - Public: YES (los avatares pueden ser públicos)
-   - File size limit: 5 MB
-
-### Paso 4.2: Configurar RLS para Storage
-Por cada bucket, click en él y luego **"Policies"** (pestaña):
-
-**Para portfolio-images:**
 ```sql
--- SELECT: cualquiera autenticado puede ver
 CREATE POLICY "Autenticados pueden ver portfolio"
 ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'portfolio-images' 
-  AND auth.role() = 'authenticated'
-);
-
--- INSERT: solo el propietario
-CREATE POLICY "Profesionales pueden subir sus fotos"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'portfolio-images'
-  AND auth.uid() = (
-    SELECT user_id FROM professional_profiles 
-    WHERE id = (storage.foldername(name))[1]::uuid
-  )
-);
+USING (bucket_id = 'portfolio' AND auth.role() = 'authenticated');
 ```
-
-Para las demás, sigue el mismo patrón adaptado.
 
 ---
 
 ## 5. Realtime y RLS
 
-### Paso 5.1: Habilitar Realtime
-En el menú izquierdo:
-- Click en **"Realtime"**
-- Click en el nombre del proyecto
-- En **"Replication"**, activa las tablas donde quieres que funcione realtime:
-  - ✅ messages (para chat en vivo)
-  - ✅ notifications
-  - ✅ projects (para ver cambios de estado)
-  - ✅ payments (para ver cuando se completa pago)
+### Activar Realtime
+En **Database → Replication**, activa:
+- ✅ `messages`
+- ✅ `notifications`
 
-El resto pueden estar deshabilitadas para ahorrar recursos.
-
-### Paso 5.2: Verificar RLS
-En **"Table Editor"**, selecciona cada tabla. A la derecha, haz click en el icono de escudo 🛡️ (RLS).
-
-Deberías ver:
-- **Policies activas** para cada tabla
-- El nombre y descripción de cada política
-
-Si no las ves, significa que el script SQL no se ejecutó bien.
+### RLS
+Ya viene configurado en las migraciones. Verifica que cada tabla tenga el escudo 🛡️ activo en Table Editor.
 
 ---
 
 ## 6. Variables de Entorno
 
-### Paso 6.1: Crear fichero `.env.local`
-En la raíz de tu proyecto React Native, crea un fichero `.env.local` (o `.env` dependiendo tu config):
+Copia `habitup/.env.example` a `habitup/.env.local`:
 
-```bash
-# .env.local
-
-# Supabase
-EXPO_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# Firebase (para Analytics, opcional)
-FIREBASE_API_KEY=your_firebase_key
-FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-FIREBASE_PROJECT_ID=your_project_id
-
-# Stripe (lo agregaremos en fase de pagos)
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+EXPO_PUBLIC_SUPABASE_PROJECT_ID=tu-ref
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+EXPO_PUBLIC_PROJECT_ID=tu-expo-project-id
 ```
 
-⚠️ **Importante:** 
-- Prefija con `EXPO_PUBLIC_` si quieres que estén disponibles en el cliente (JavaScript)
-- El **Anon Key** es seguro compartir (es pública)
-- El **Service Role Key** NUNCA lo compartas ni lo commits
+⚠️ **Nunca** comitear `.env.local`. El `EXPO_PUBLIC_` prefijo lo hace disponible en el cliente.
 
 ---
 
 ## 7. Pruebas Iniciales
 
-### Prueba 7.1: Verificar conexión desde SQL Editor
-En Supabase, **SQL Editor** → **New Query**:
-
+Desde el SQL Editor:
 ```sql
-SELECT COUNT(*) FROM categories;
--- Debería retornar 10 (las categorías que insertamos)
-
-SELECT COUNT(*) FROM users;
--- Debería retornar 0 (aún no hay usuarios)
+SELECT COUNT(*) FROM categories; -- Debería devolver 15
+SELECT COUNT(*) FROM users;      -- 0 (aún sin usuarios)
 ```
 
-### Prueba 7.2: Crear un usuario de prueba (opcional)
-En el menu izquierdo → **Authentication** → **Users**:
-1. Click en **"Add user"**
-2. Email: `test@example.com`
-3. Password: `testPassword123`
-4. Click **"Create user"**
-
-Verás que se crea automáticamente una fila en la tabla `users` gracias a los triggers de Supabase.
-
-### Prueba 7.3: Test de API desde JavaScript
-Cuando hayas montado la app React Native, puedes probar así:
-
-```javascript
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
-)
-
-// Test 1: Listar categorías
-const { data, error } = await supabase
-  .from('categories')
-  .select('*')
-
-console.log('Categorías:', data) // Debería mostrar 10
-console.log('Error:', error) // Debería ser null
-
-// Test 2: Autenticación
-const { data: auth, error: authError } = await supabase.auth.signUp({
-  email: 'newuser@example.com',
-  password: 'securePassword123'
-})
-
-console.log('User:', auth.user) // Nuevo usuario
-```
+Puedes añadir un usuario de prueba desde **Authentication → Users → Add user**.
 
 ---
 
-## 8. Seguridad: Checklist antes de Producción
+## 8. Seguridad: Checklist pre-producción
 
-Antes de publicar a App Store / Google Play:
-
-- [ ] Cambiar **JWT Secret** a algo único (Supabase lo hace automáticamente, pero verifica)
-- [ ] Deshabilitar **"Confirm email"** en desarrollo, pero habilitarlo en producción
-- [ ] Establecer **Rate Limits** en Auth (prevenir brute force)
-- [ ] Revisar todas las políticas RLS (asegúrate de que son restrictivas)
-- [ ] Cambiar Bucket Storage a **Public: NO** para todo excepto avatares
-- [ ] Configurar **CORS** correctamente para tu dominio
-- [ ] Activar **Database Webhooks** para auditoria (logs)
+- [ ] Verificar RLS activo en todas las tablas
+- [ ] Buckets de Storage con acceso restringido
+- [ ] Rate Limits en Auth
+- [ ] CORS configurado para tu dominio
+- [ ] Confirmación de email activada
 
 ---
 
-## 9. Monitoreo y Costos
-
-### Panel de Control
-En Supabase, ve a:
-- **Home** → ves un resumen de uso
-- **Reports** → estadísticas de queries, storage, etc.
-- **Billing** → cuánto estás gastando
-
-### Costos (Plan Free):
-- Base de datos: 500 MB
-- Storage: 1 GB
-- Realtime: 2 GB/mes
-- Auth: 50,000 usuarios
-
-Es suficiente para MVP. Cuando crezcas, pasas a Pro (25 USD/mes).
-
----
-
-## 10. Próximos Pasos
-
-Una vez todo esto esté listo:
-
-1. ✅ Esquema SQL creado
-2. ✅ Auth configurado
-3. ✅ Storage configurado
-4. ✅ RLS habilitado
-5. ✅ Variables de entorno guardadas
-6. → **Crear proyecto React Native** (siguiente archivo)
-
----
-
-**Cuando hayas completado todo esto, avísame y empezamos con la estructura de React Native.**
+> **Schema canónico:** `habitup/supabase/migrations/000_schema_base.sql`
+> Las migraciones son la fuente de verdad. `supabase/habitup_schema.sql` es un snapshot acumulativo.

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TextInput, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -8,10 +8,15 @@ import { useProfessionals } from '@/hooks/useProfessionals';
 import { ProfessionalCard } from '@/components/professionals';
 import { professionalsService } from '@/services/professionals.service';
 import type { Category } from '@/types/models';
+import { Screen, Input, EmptyState, ErrorState } from '@/components/ui';
+import { Search, MapPin } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 export default function SearchScreen() {
   const router = useRouter();
   const { results, isLoading, error, hasMore, search } = useProfessionals();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [city, setCity] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -33,76 +38,133 @@ export default function SearchScreen() {
 
   const onLoadMore = () => {
     if (!isLoading && hasMore) {
-      search({
-        city: city.trim() || undefined,
-        category_slug: selectedCategory?.slug,
-        min_rating: minRating,
-      }, false);
+      search({ city: city.trim() || undefined, category_slug: selectedCategory?.slug, min_rating: minRating }, false);
     }
   };
 
   const RATINGS = [
-    { label: 'Todos', value: undefined },
-    { label: '4★+', value: 4 },
-    { label: '4.5★+', value: 4.5 },
+    { label: 'Todos',  value: undefined },
+    { label: '4★+',    value: 4 },
+    { label: '4.5★+',  value: 4.5 },
   ];
 
-  return (
-    <View className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="bg-white px-4 pt-14 pb-4 shadow-sm">
-        <Text className="text-xl font-bold text-gray-900 mb-3">Buscar profesionales</Text>
+  const surfaceBg  = isDark ? '#1A1D29' : '#FFFFFF';
+  const borderCol  = isDark ? '#2D3548' : '#E2E8F0';
+  const chipBg     = isDark ? '#1E2433' : '#F1F5F9';
+  const chipText   = isDark ? '#94A3B8' : '#64748B';
 
-        {/* Buscador por ciudad */}
-        <View className="flex-row gap-2 mb-3">
-          <TextInput
-            className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-gray-900"
-            placeholder="Ciudad o zona..."
-            value={city}
-            onChangeText={setCity}
-            onSubmitEditing={onSearch}
-            returnKeyType="search"
-          />
+  return (
+    <Screen safeArea={false} className="flex-1">
+      {/* ── Sticky header ── */}
+      <View
+        style={{
+          paddingTop: 60,
+          paddingBottom: 12,
+          paddingHorizontal: 24,
+          backgroundColor: surfaceBg,
+          borderBottomWidth: 1,
+          borderBottomColor: borderCol,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 3,
+        }}
+      >
+        <Text className="text-2xl font-extrabold text-text mb-4">Explorar</Text>
+
+        {/* Search bar */}
+        <View className="flex-row items-center gap-3 mb-4">
+          <View style={{ flex: 1 }}>
+            <Input
+              placeholder="Ciudad o zona..."
+              value={city}
+              onChangeText={setCity}
+              onSubmitEditing={onSearch}
+              returnKeyType="search"
+              leftIcon={<MapPin size={20} color={isDark ? '#94A3B8' : '#64748B'} />}
+              className="mb-0 border-border/80"
+              style={{ marginBottom: 0 }}
+            />
+          </View>
           <TouchableOpacity
             onPress={onSearch}
-            className="bg-brand px-4 rounded-xl items-center justify-center"
+            activeOpacity={0.85}
+            style={{
+              width: 50, height: 50,
+              borderRadius: 14,
+              backgroundColor: '#6366F1',
+              alignItems: 'center', justifyContent: 'center',
+              shadowColor: '#6366F1',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.35,
+              shadowRadius: 6,
+              elevation: 4,
+            }}
           >
-            <Text className="text-white font-semibold">Buscar</Text>
+            <Search size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Filtro categorías */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
+        {/* Category chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -24 }}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+          className="mb-3"
+        >
           <TouchableOpacity
-            onPress={() => { setSelectedCategory(null); }}
-            className={`px-3 py-1.5 rounded-full border mr-2 ${!selectedCategory ? 'bg-brand border-brand' : 'bg-white border-gray-300'}`}
+            onPress={() => setSelectedCategory(null)}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: 7, paddingHorizontal: 16,
+              borderRadius: 20,
+              backgroundColor: !selectedCategory ? '#6366F1' : chipBg,
+            }}
           >
-            <Text className={!selectedCategory ? 'text-white text-sm font-medium' : 'text-gray-600 text-sm'}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: !selectedCategory ? '#fff' : chipText }}>
               Todos
             </Text>
           </TouchableOpacity>
+
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat.id}
               onPress={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-full border mr-2 ${selectedCategory?.id === cat.id ? 'bg-brand border-brand' : 'bg-white border-gray-300'}`}
+              activeOpacity={0.8}
+              style={{
+                paddingVertical: 7, paddingHorizontal: 16,
+                borderRadius: 20,
+                backgroundColor: selectedCategory?.id === cat.id ? '#6366F1' : chipBg,
+              }}
             >
-              <Text className={selectedCategory?.id === cat.id ? 'text-white text-sm font-medium' : 'text-gray-600 text-sm'}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: selectedCategory?.id === cat.id ? '#fff' : chipText }}>
                 {cat.name}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Filtro rating */}
+        {/* Rating chips */}
         <View className="flex-row gap-2">
           {RATINGS.map(({ label, value }) => (
             <TouchableOpacity
               key={label}
               onPress={() => setMinRating(value)}
-              className={`px-3 py-1.5 rounded-full border ${minRating === value ? 'bg-amber-400 border-amber-400' : 'bg-white border-gray-300'}`}
+              activeOpacity={0.8}
+              style={{
+                paddingVertical: 6, paddingHorizontal: 14,
+                borderRadius: 20,
+                backgroundColor: minRating === value ? 'rgba(245,158,11,0.15)' : chipBg,
+                borderWidth: 1.5,
+                borderColor: minRating === value ? '#F59E0B' : 'transparent',
+              }}
             >
-              <Text className={`text-sm ${minRating === value ? 'text-white font-medium' : 'text-gray-600'}`}>
+              <Text style={{
+                fontSize: 12, fontWeight: '600',
+                color: minRating === value ? '#F59E0B' : chipText,
+              }}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -110,16 +172,14 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Resultados */}
+      {/* ── Results ── */}
       {error ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-red-500">{error}</Text>
-        </View>
+        <ErrorState message={error} onRetry={onSearch} />
       ) : (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pt-4 pb-10"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 }}
           renderItem={({ item }) => (
             <ProfessionalCard
               professional={item}
@@ -128,18 +188,20 @@ export default function SearchScreen() {
           )}
           ListEmptyComponent={
             isLoading ? null : (
-              <View className="items-center mt-16">
-                <Text className="text-gray-400 text-base">No se encontraron profesionales</Text>
-              </View>
+              <EmptyState
+                icon={<Search size={32} color="#94A3B8" />}
+                title="Sin resultados"
+                description="No encontramos profesionales con estos filtros."
+              />
             )
           }
           ListFooterComponent={
-            isLoading ? <ActivityIndicator className="my-4" color="#2563eb" /> : null
+            isLoading ? <ActivityIndicator style={{ marginVertical: 32 }} color="#6366F1" size="large" /> : null
           }
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.3}
         />
       )}
-    </View>
+    </Screen>
   );
 }

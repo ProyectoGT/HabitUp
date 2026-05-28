@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView,
   ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -9,9 +9,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { professionalsService } from '@/services/professionals.service';
 import { useAuthStore } from '@/stores/authStore';
-import { StepIndicator } from '@/components/ui';
+import { Screen, Input, Button, Card, StepIndicator } from '@/components/ui';
+import { Briefcase, Building2, MapPin, Map, MapPinHouse, Award, BriefcaseBusiness, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import type { Category } from '@/types/models';
-import { useEffect } from 'react';
+import { useColorScheme } from 'nativewind';
 
 // ── Step 1 schema ─────────────────────────────────
 const step1Schema = z.object({
@@ -36,6 +37,9 @@ export default function OnboardingScreen() {
   const [categoriesError, setCategoriesError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
+  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const { control, handleSubmit, formState: { errors } } = useForm<Step1Data>({
     resolver: zodResolver(step1Schema) as Resolver<Step1Data>,
@@ -83,171 +87,187 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerClassName="px-6 pt-14 pb-10">
-        <Text className="text-2xl font-bold text-gray-900 mb-1">Crea tu perfil profesional</Text>
-        <Text className="text-gray-500 mb-6">
-          {step === 0 ? 'Datos básicos de tu negocio' : 'Elige tus especialidades'}
-        </Text>
+    <Screen safeArea={false} className="flex-1">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerClassName="px-6 pt-16 pb-10" showsVerticalScrollIndicator={false}>
+          <Text className="text-3xl font-extrabold text-text mb-2">Crea tu perfil</Text>
+          <Text className="text-muted-text text-base mb-8 leading-relaxed">
+            {step === 0 ? 'Completa los datos de tu negocio para empezar a recibir presupuestos.' : '¿Cuáles son tus especialidades principales?'}
+          </Text>
 
-        <StepIndicator total={2} current={step} />
+          <View className="mb-8">
+            <StepIndicator total={2} current={step} />
+          </View>
 
-        {step === 0 ? (
-          <Step1Form control={control} errors={errors} onSubmit={handleSubmit(onStep1Submit)} />
-        ) : (
-          <Step2Categories
-            categories={categories}
-            selected={selectedCategoryIds}
-            onToggle={toggleCategory}
-            error={categoriesError}
-            isSubmitting={isSubmitting}
-            onBack={() => setStep(0)}
-            onFinish={onFinish}
-          />
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {step === 0 ? (
+            <Step1Form control={control} errors={errors} onSubmit={handleSubmit(onStep1Submit)} isDark={isDark} />
+          ) : (
+            <Step2Categories
+              categories={categories}
+              selected={selectedCategoryIds}
+              onToggle={toggleCategory}
+              error={categoriesError}
+              isSubmitting={isSubmitting}
+              onBack={() => setStep(0)}
+              onFinish={onFinish}
+            />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
 // ── Sub-componente Step1 ───────────────────────────
 function Step1Form({
-  control, errors, onSubmit,
+  control, errors, onSubmit, isDark
 }: {
   control: Control<Step1Data>;
   errors: FieldErrors<Step1Data>;
   onSubmit: () => void;
+  isDark: boolean;
 }) {
   return (
-    <View>
+    <View className="gap-6">
       {/* Tipo de empresa */}
-      <Text className="text-sm font-medium text-gray-700 mb-2">Tipo de empresa</Text>
+      <View>
+        <Text className="text-sm font-bold text-text mb-3">Tipo de empresa</Text>
+        <Controller
+          control={control}
+          name="company_type"
+          render={({ field: { onChange, value } }) => (
+            <View className="flex-row gap-4 mb-2">
+              {(['autonomo', 'empresa'] as const).map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  activeOpacity={0.7}
+                  onPress={() => onChange(t)}
+                  className={`flex-1 py-4 rounded-2xl border-2 items-center flex-row justify-center gap-2 ${
+                    value === t 
+                      ? 'bg-primary/5 border-primary' 
+                      : 'bg-surface border-border'
+                  }`}
+                >
+                  {t === 'autonomo' ? (
+                    <Briefcase size={20} color={value === t ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} />
+                  ) : (
+                    <Building2 size={20} color={value === t ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} />
+                  )}
+                  <Text className={`font-bold ${value === t ? 'text-primary' : 'text-muted-text'}`}>
+                    {t === 'autonomo' ? 'Autónomo' : 'Empresa'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        />
+      </View>
+
       <Controller
         control={control}
-        name="company_type"
+        name="company_name"
         render={({ field: { onChange, value } }) => (
-          <View className="flex-row gap-3 mb-4">
-            {(['autonomo', 'empresa'] as const).map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => onChange(t)}
-                className={`flex-1 py-3 rounded-xl border items-center ${
-                  value === t ? 'bg-brand border-brand' : 'bg-white border-gray-300'
-                }`}
-              >
-                <Text className={value === t ? 'text-white font-semibold' : 'text-gray-600'}>
-                  {t === 'autonomo' ? 'Autónomo' : 'Empresa'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Input
+            label="Nombre de empresa (opcional)"
+            placeholder="Ej: Reformas García S.L."
+            onChangeText={onChange}
+            value={value}
+            leftIcon={<Building2 size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+          />
         )}
       />
 
-      <Field label="Nombre de empresa (opcional)">
-        <Controller
-          control={control}
-          name="company_name"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3"
-              placeholder="Ej: Reformas García S.L."
-              onChangeText={onChange}
-              value={value}
-            />
-          )}
-        />
-      </Field>
+      <Controller
+        control={control}
+        name="description"
+        render={({ field: { onChange, value } }) => (
+          <Input
+            label="Descripción *"
+            placeholder="Cuéntanos tu experiencia, qué trabajos realizas..."
+            multiline
+            numberOfLines={4}
+            onChangeText={onChange}
+            value={value}
+            error={errors.description?.message}
+          />
+        )}
+      />
 
-      <Field label="Descripción *" error={errors.description?.message}>
-        <Controller
-          control={control}
-          name="description"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3"
-              placeholder="Cuéntanos tu experiencia, qué trabajos realizas..."
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              onChangeText={onChange}
-              value={value}
-            />
-          )}
-        />
-      </Field>
-
-      <View className="flex-row gap-3">
+      <View className="flex-row gap-4">
         <View className="flex-1">
-          <Field label="Años de experiencia *" error={errors.experience_years?.message}>
-            <Controller
-              control={control}
-              name="experience_years"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3"
-                  keyboardType="numeric"
-                  onChangeText={onChange}
-                  value={String(value ?? '')}
-                />
-              )}
-            />
-          </Field>
+          <Controller
+            control={control}
+            name="experience_years"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Años de experiencia *"
+                keyboardType="numeric"
+                onChangeText={onChange}
+                value={String(value ?? '')}
+                error={errors.experience_years?.message}
+                leftIcon={<Award size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+              />
+            )}
+          />
         </View>
         <View className="flex-1">
-          <Field label="Radio de trabajo (km) *" error={errors.service_radius_km?.message}>
-            <Controller
-              control={control}
-              name="service_radius_km"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  className="border border-gray-300 rounded-lg px-4 py-3"
-                  keyboardType="numeric"
-                  onChangeText={onChange}
-                  value={String(value ?? '')}
-                />
-              )}
-            />
-          </Field>
+          <Controller
+            control={control}
+            name="service_radius_km"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Radio de trabajo (km) *"
+                keyboardType="numeric"
+                onChangeText={onChange}
+                value={String(value ?? '')}
+                error={errors.service_radius_km?.message}
+                leftIcon={<MapPinHouse size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+              />
+            )}
+          />
         </View>
       </View>
 
-      <Field label="Ciudad *" error={errors.location_city?.message}>
-        <Controller
-          control={control}
-          name="location_city"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3"
-              placeholder="Ej: Madrid"
-              onChangeText={onChange}
-              value={value}
-            />
-          )}
-        />
-      </Field>
+      <Controller
+        control={control}
+        name="location_city"
+        render={({ field: { onChange, value } }) => (
+          <Input
+            label="Ciudad *"
+            placeholder="Ej: Madrid"
+            onChangeText={onChange}
+            value={value}
+            error={errors.location_city?.message}
+            leftIcon={<MapPin size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+          />
+        )}
+      />
 
-      <Field label="Comunidad autónoma *" error={errors.location_region?.message}>
-        <Controller
-          control={control}
-          name="location_region"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3"
-              placeholder="Ej: Comunidad de Madrid"
-              onChangeText={onChange}
-              value={value}
-            />
-          )}
-        />
-      </Field>
+      <Controller
+        control={control}
+        name="location_region"
+        render={({ field: { onChange, value } }) => (
+          <Input
+            label="Comunidad autónoma *"
+            placeholder="Ej: Comunidad de Madrid"
+            onChangeText={onChange}
+            value={value}
+            error={errors.location_region?.message}
+            leftIcon={<Map size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
+          />
+        )}
+      />
 
-      <TouchableOpacity onPress={onSubmit} className="bg-brand py-4 rounded-xl items-center mt-4">
-        <Text className="text-white font-semibold text-base">Siguiente →</Text>
-      </TouchableOpacity>
+      <Button 
+        label="Siguiente paso" 
+        onPress={onSubmit} 
+        size="lg"
+        rightIcon={<ArrowRight size={20} color="#FFF" />}
+        className="mt-4 shadow-sm shadow-primary/30"
+      />
     </View>
   );
 }
@@ -265,20 +285,30 @@ function Step2Categories({
   onFinish: () => void;
 }) {
   return (
-    <View>
-      <Text className="text-sm text-gray-500 mb-4">Selecciona todas las que apliquen. La primera será tu especialidad principal.</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
+    <View className="flex-1">
+      <Card variant="flat" className="bg-primary/5 border border-primary/20 p-4 mb-6">
+        <Text className="text-primary font-bold text-sm mb-1">Nota importante</Text>
+        <Text className="text-muted-text text-sm leading-relaxed">
+          Selecciona todas las que apliquen. La primera categoría seleccionada será configurada como tu especialidad principal.
+        </Text>
+      </Card>
+
+      <View className="flex-row flex-wrap gap-3 mb-8">
         {categories.map((cat) => {
           const isSelected = selected.includes(cat.id);
           return (
             <TouchableOpacity
               key={cat.id}
+              activeOpacity={0.7}
               onPress={() => onToggle(cat.id)}
-              className={`px-4 py-2 rounded-full border ${
-                isSelected ? 'bg-brand border-brand' : 'bg-white border-gray-300'
+              className={`px-5 py-3 rounded-full border-2 flex-row items-center gap-2 ${
+                isSelected 
+                  ? 'bg-primary border-primary' 
+                  : 'bg-surface border-border/60'
               }`}
             >
-              <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>
+              {isSelected && <CheckCircle2 size={16} color="#FFF" />}
+              <Text className={`font-bold ${isSelected ? 'text-white' : 'text-text'}`}>
                 {cat.name}
               </Text>
             </TouchableOpacity>
@@ -286,33 +316,28 @@ function Step2Categories({
         })}
       </View>
 
-      {error ? <Text className="text-red-500 text-sm mb-3">{error}</Text> : null}
+      {error ? (
+        <Text className="text-error text-sm text-center mb-6 bg-error/10 p-3 rounded-xl">
+          {error}
+        </Text>
+      ) : null}
 
-      <View className="flex-row gap-3 mt-2">
-        <TouchableOpacity onPress={onBack} className="flex-1 py-4 rounded-xl border border-gray-300 items-center">
-          <Text className="text-gray-700 font-semibold">← Atrás</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+      <View className="flex-row gap-4 mt-auto pt-4 border-t border-border/30">
+        <Button 
+          label="Atrás" 
+          variant="outline" 
+          onPress={onBack}
+          leftIcon={<ArrowLeft size={20} color="#6366F1" />}
+          className="flex-1"
+        />
+        <Button 
+          label="Finalizar" 
           onPress={onFinish}
-          disabled={isSubmitting}
-          className="flex-1 bg-brand py-4 rounded-xl items-center"
-        >
-          {isSubmitting
-            ? <ActivityIndicator color="white" />
-            : <Text className="text-white font-semibold text-base">Finalizar</Text>}
-        </TouchableOpacity>
+          isLoading={isSubmitting}
+          className="flex-1 shadow-sm shadow-primary/30"
+          rightIcon={<CheckCircle2 size={20} color="#FFF" />}
+        />
       </View>
-    </View>
-  );
-}
-
-// ── Helper UI ─────────────────────────────────────
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <View className="mb-4">
-      <Text className="text-sm font-medium text-gray-700 mb-1">{label}</Text>
-      {children}
-      {error ? <Text className="text-red-500 text-xs mt-1">{error}</Text> : null}
     </View>
   );
 }

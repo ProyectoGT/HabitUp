@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { User } from '@/types/models';
 
 export interface SignUpParams {
@@ -16,6 +17,8 @@ export const authService = {
       options: { data: { full_name, user_type } },
     });
     if (error) throw error;
+    trackEvent('user_signed_up', { role: user_type });
+    trackEvent('role_selected', { role: user_type });
     return data;
   },
 

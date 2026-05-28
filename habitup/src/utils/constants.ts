@@ -18,11 +18,13 @@ export const QUOTE_STATUS = {
   ACCEPTED: 'aceptado',
   REJECTED: 'rechazado',
   EXPIRED: 'expirado',
+  WITHDRAWN: 'retirado',
 } as const;
 
 export const PROJECT_STATUS = {
   PENDING: 'pendiente',
   IN_PROGRESS: 'en_curso',
+  PENDING_COMPLETION: 'pendiente_finalizacion',
   PAUSED: 'pausado',
   COMPLETED: 'completado',
   CANCELLED: 'cancelado',
@@ -30,9 +32,11 @@ export const PROJECT_STATUS = {
 
 export const PAYMENT_STATUS = {
   PENDING: 'pendiente',
-  PROCESSING: 'en_proceso',
+  PENDING_PAYMENT: 'pendiente_pago',
   COMPLETED: 'completado',
   FAILED: 'fallido',
+  REFUNDED: 'reembolsado',
+  DISPUTE: 'disputa',
 } as const;
 
 export const URGENCY = {

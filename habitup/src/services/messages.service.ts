@@ -1,8 +1,21 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
 import type { Message } from '@/types/models';
 
 export const messagesService = {
-  async getByProject(projectId: string): Promise<Message[]> {
+  async isProjectParticipant(projectId: string): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data } = await supabase
+      .from('projects')
+      .select('id')
+      .or(`client_id.eq.${user.id},and(professional_id.in.(select id from professional_profiles where user_id.eq.${user.id}))`)
+      .eq('id', projectId)
+      .maybeSingle();
+    return data !== null;
+  },
+
+  async getByProject(projectId: string) {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
@@ -42,6 +55,7 @@ export const messagesService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('message_sent', { project_id: projectId, message_type: messageType });
     return data as Message;
   },
 

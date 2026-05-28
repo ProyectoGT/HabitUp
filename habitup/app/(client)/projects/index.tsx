@@ -1,16 +1,20 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/services/supabase';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Project } from '@/types/models';
+import { Screen, Card, Badge, LoadingState, EmptyState } from '@/components/ui';
+import { Hammer, Calendar, CircleDollarSign } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
-const STATUS_STYLE: Record<string, { label: string; style: string }> = {
-  pendiente:   { label: 'Pendiente',    style: 'bg-yellow-50 text-yellow-700' },
-  en_curso:    { label: 'En curso',     style: 'bg-blue-50 text-brand' },
-  pausado:     { label: 'Pausado',      style: 'bg-gray-100 text-gray-500' },
-  completado:  { label: 'Completado',   style: 'bg-green-50 text-green-700' },
-  cancelado:   { label: 'Cancelado',    style: 'bg-red-50 text-red-500' },
+const STATUS_STYLE: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
+  pendiente:   { label: 'Pendiente',    variant: 'warning' },
+  en_curso:    { label: 'En curso',     variant: 'info' },
+  pendiente_finalizacion: { label: 'Pendiente de confirmación', variant: 'warning' },
+  pausado:     { label: 'Pausado',      variant: 'default' },
+  completado:  { label: 'Completado',   variant: 'success' },
+  cancelado:   { label: 'Cancelado',    variant: 'error' },
 };
 
 export default function ClientProjectsScreen() {
@@ -18,6 +22,9 @@ export default function ClientProjectsScreen() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -38,43 +45,62 @@ export default function ClientProjectsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-4 pt-14 pb-4 shadow-sm">
-        <Text className="text-xl font-bold text-gray-900">Mis proyectos</Text>
+    <Screen safeArea={false} className="flex-1">
+      <View className="bg-surface px-6 pt-16 pb-6 rounded-b-3xl shadow-sm shadow-primary/10 z-10 border-b border-border/50">
+        <Text className="text-2xl font-extrabold text-text">Mis proyectos</Text>
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center"><ActivityIndicator color="#2563eb" /></View>
+        <LoadingState />
       ) : (
         <FlatList
           data={projects}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pt-4 pb-10"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerClassName="px-6 pt-6 pb-10"
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              tintColor="#6366F1" 
+              colors={['#6366F1']} 
+            />
+          }
           renderItem={({ item }) => {
-            const st = STATUS_STYLE[item.status] ?? { label: item.status, style: 'bg-gray-100 text-gray-500' };
+            const st = STATUS_STYLE[item.status] ?? { label: item.status, variant: 'default' };
             return (
-              <TouchableOpacity
+              <Card
                 onPress={() => router.push(`/(client)/projects/${item.id}`)}
-                className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100"
+                className="mb-4"
               >
-                <View className="flex-row items-start justify-between mb-1">
-                  <Text className="font-semibold text-gray-900 flex-1 mr-2" numberOfLines={1}>{item.title}</Text>
-                  <Text className={`text-xs px-2 py-0.5 rounded-full ${st.style}`}>{st.label}</Text>
+                <View className="flex-row items-start justify-between mb-3">
+                  <Text className="text-lg font-bold text-text flex-1 mr-3 leading-tight" numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <Badge label={st.label} variant={st.variant} />
                 </View>
-                <Text className="text-brand font-bold mt-1">{formatCurrency(item.agreed_price)}</Text>
-                <Text className="text-xs text-gray-400 mt-1">{formatDate(item.created_at)}</Text>
-              </TouchableOpacity>
+
+                <View className="flex-row items-center justify-between border-t border-border/50 pt-3">
+                  <View className="flex-row items-center">
+                    <CircleDollarSign size={16} color="#10B981" />
+                    <Text className="text-success font-bold ml-1.5">{formatCurrency(item.agreed_price)}</Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Calendar size={14} color={isDark ? '#94A3B8' : '#64748B'} />
+                    <Text className="text-xs font-medium text-muted-text ml-1.5">{formatDate(item.created_at)}</Text>
+                  </View>
+                </View>
+              </Card>
             );
           }}
           ListEmptyComponent={
-            <View className="items-center mt-20">
-              <Text className="text-4xl mb-4">🔨</Text>
-              <Text className="text-gray-500 text-center">Todavía no tienes proyectos activos</Text>
-            </View>
+            <EmptyState
+              icon={<Hammer size={40} color="#6366F1" />}
+              title="Sin proyectos activos"
+              description="Cuando aceptes un presupuesto de un profesional, aparecerá aquí."
+            />
           }
         />
       )}
-    </View>
+    </Screen>
   );
 }

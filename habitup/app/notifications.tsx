@@ -7,6 +7,8 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import { notificationsService } from '@/services/notifications.service';
 import { formatRelativeTime } from '@/utils/formatters';
 import type { Notification } from '@/types/models';
+import { EmptyState } from '@/components/ui';
+import { Bell } from 'lucide-react-native';
 
 const TYPE_ICON: Record<string, string> = {
   new_quote:         '💰',
@@ -85,10 +87,11 @@ export default function NotificationsScreen() {
         )}
         ItemSeparatorComponent={() => <View className="h-px bg-gray-100 mx-4" />}
         ListEmptyComponent={
-          <View className="items-center justify-center mt-24">
-            <Text className="text-4xl mb-4">🔔</Text>
-            <Text className="text-gray-500 text-center">Sin notificaciones todavía</Text>
-          </View>
+          <EmptyState
+            icon={<Bell size={40} color="#94A3B8" />}
+            title="Sin notificaciones"
+            description="Cuando haya actividad relacionada con tus proyectos, aparecerá aquí."
+          />
         }
       />
     </View>

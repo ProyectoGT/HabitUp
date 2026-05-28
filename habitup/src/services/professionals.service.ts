@@ -1,5 +1,13 @@
 import { supabase } from './supabase';
-import type { ProfessionalProfile, Category } from '@/types/models';
+import { trackEvent } from './analytics.service';
+import type { ProfessionalProfile, ProfessionalProfileWithUser, Category, LeadWithCategoryAndClient } from '@/types/models';
+
+export interface StripeOnboardingStatus {
+  accountId: string | null;
+  status: 'not_created' | 'pending' | 'active' | 'restricted' | 'disabled';
+  enabled: boolean;
+  canReceivePayments: boolean;
+}
 
 export interface CreateProfileParams {
   company_name?: string;
@@ -23,13 +31,17 @@ export interface SearchProfessionalsParams {
 
 export const professionalsService = {
   async getMyProfile(): Promise<ProfessionalProfile | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('professional_profiles')
       .select('*')
+      .eq('user_id', user.id)
       .single();
-    if (error?.code === 'PGRST116') return null; // no rows
+    if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfile | null;
   },
 
   async getProfileByUserId(userId: string): Promise<ProfessionalProfile | null> {
@@ -40,18 +52,18 @@ export const professionalsService = {
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfile | null;
   },
 
-  async getProfileById(id: string): Promise<ProfessionalProfile | null> {
+  async getProfileById(id: string) {
     const { data, error } = await supabase
       .from('professional_profiles')
-      .select('*')
+      .select('*, users(full_name, avatar_url)')
       .eq('id', id)
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfile;
+    return data as ProfessionalProfileWithUser | null;
   },
 
   async createProfile(params: CreateProfileParams): Promise<ProfessionalProfile> {
@@ -64,13 +76,21 @@ export const professionalsService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('professional_onboarding_completed', {
+      professional_id: data.id,
+      city: params.location_city,
+    });
     return data as ProfessionalProfile;
   },
 
   async updateProfile(params: Partial<CreateProfileParams>): Promise<ProfessionalProfile> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
     const { data, error } = await supabase
       .from('professional_profiles')
       .update(params)
+      .eq('user_id', user.id)
       .select()
       .single();
     if (error) throw error;
@@ -103,7 +123,6 @@ export const professionalsService = {
   },
 
   async setCategories(professionalId: string, categoryIds: string[]) {
-    // Reemplaza todas las categorías del profesional
     await supabase
       .from('professional_categories')
       .delete()
@@ -121,6 +140,33 @@ export const professionalsService = {
     if (error) throw error;
   },
 
+  async getStripeOnboardingStatus(): Promise<StripeOnboardingStatus> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .select('stripe_account_id, stripe_account_status, stripe_account_enabled')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error?.code === 'PGRST116') {
+      return { accountId: null, status: 'not_created', enabled: false, canReceivePayments: false };
+    }
+    if (error) throw error;
+
+    const accountId = data?.stripe_account_id ?? null;
+    const status = (data?.stripe_account_status ?? 'not_created') as StripeOnboardingStatus['status'];
+    const enabled = data?.stripe_account_enabled ?? false;
+
+    return {
+      accountId,
+      status,
+      enabled,
+      canReceivePayments: status === 'active' && enabled,
+    };
+  },
+
   async getCategories(): Promise<Category[]> {
     const { data, error } = await supabase
       .from('categories')
@@ -129,6 +175,88 @@ export const professionalsService = {
       .order('name');
     if (error) throw error;
     return (data ?? []) as Category[];
+  },
+
+  async getDashboardStats(professionalId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { data: categories } = await supabase
+      .from('professional_categories')
+      .select('category_id')
+      .eq('professional_id', professionalId);
+
+    const categoryIds = (categories ?? []).map((c: { category_id: string }) => c.category_id);
+
+    const [projectsResult, activeProjectsResult, upcomingResult] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('agreed_price')
+        .eq('professional_id', professionalId)
+        .gte('created_at', startOfMonth.toISOString()),
+      supabase
+        .from('projects')
+        .select('id', { count: 'exact' })
+        .eq('professional_id', professionalId)
+        .in('status', ['en_curso', 'pendiente_finalizacion']),
+      supabase
+        .from('projects')
+        .select('id, title, start_date, status')
+        .eq('professional_id', professionalId)
+        .in('status', ['pendiente', 'en_curso'])
+        .gte('start_date', new Date().toISOString().slice(0, 10))
+        .order('start_date', { ascending: true })
+        .limit(5),
+    ]);
+
+    const { data: profile } = await supabase
+      .from('professional_profiles')
+      .select('location_city')
+      .eq('id', professionalId)
+      .single();
+
+    let countQuery = supabase
+      .from('leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'activo');
+
+    let listQuery = supabase
+      .from('leads')
+      .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')
+      .eq('status', 'activo')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (categoryIds.length > 0) {
+      countQuery = countQuery.in('category_id', categoryIds);
+      listQuery = listQuery.in('category_id', categoryIds);
+    }
+
+    if (profile?.location_city) {
+      countQuery = countQuery.eq('location_city', profile.location_city);
+      listQuery = listQuery.eq('location_city', profile.location_city);
+    }
+
+    const [leadsResult, recentLeadsResult] = await Promise.all([
+      countQuery,
+      listQuery,
+    ]);
+
+    const monthlyIncome = (projectsResult.data ?? []).reduce((sum: number, p: { agreed_price: number }) => sum + (p.agreed_price ?? 0), 0);
+    const activeProjects = activeProjectsResult.count ?? 0;
+    const availableLeads = leadsResult.count ?? 0;
+
+    return {
+      monthlyIncome,
+      activeProjects,
+      availableLeads,
+      recentLeads: (recentLeadsResult.data ?? []) as LeadWithCategoryAndClient[],
+      upcoming: (upcomingResult.data ?? []) as { id: string; title: string; start_date: string; status: string }[],
+    };
   },
 
   async getMyCategories(professionalId: string): Promise<Category[]> {

@@ -5,55 +5,64 @@ import type { Message } from '@/types/models';
 
 export function useMessages(projectId: string, recipientId: string) {
   const user = useAuthStore((s) => s.user);
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof messagesService.subscribeToProject> | null>(null);
+  const markAsReadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     try {
       const data = await messagesService.getByProject(projectId);
       setMessages(data);
-      if (user) await messagesService.markAsRead(projectId, user.id);
+      if (userRef.current) {
+        await messagesService.markAsRead(projectId, userRef.current.id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar mensajes');
     }
-  }, [projectId, user]);
+  }, [projectId]);
 
   useEffect(() => {
+    setIsLoading(true);
     load().finally(() => setIsLoading(false));
 
-    // Suscripción Realtime
     channelRef.current = messagesService.subscribeToProject(projectId, (newMsg) => {
       setMessages((prev) => {
-        // Evitar duplicados si el mensaje ya está en el estado (optimistic update)
         if (prev.some((m) => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
-      // Marcar como leído si el destinatario es el usuario actual
-      if (user && newMsg.recipient_id === user.id) {
-        messagesService.markAsRead(projectId, user.id).catch(() => null);
+
+      const currentUser = userRef.current;
+      if (currentUser && newMsg.recipient_id === currentUser.id) {
+        if (markAsReadTimer.current) clearTimeout(markAsReadTimer.current);
+        markAsReadTimer.current = setTimeout(() => {
+          messagesService.markAsRead(projectId, currentUser.id).catch(() => null);
+        }, 1500);
       }
     });
 
     return () => {
       channelRef.current?.unsubscribe();
+      if (markAsReadTimer.current) clearTimeout(markAsReadTimer.current);
     };
   }, [projectId]);
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || !user) return;
+    if (!content.trim() || !userRef.current) return;
 
     setIsSending(true);
     setError(null);
     try {
-      // Optimistic update: añadir mensaje temporal antes de la respuesta del servidor
       const tempId = `temp-${Date.now()}`;
       const optimistic: Message = {
         id: tempId,
         project_id: projectId,
-        sender_id: user.id,
+        sender_id: userRef.current.id,
         recipient_id: recipientId,
         message_type: 'text',
         content,
@@ -67,16 +76,14 @@ export function useMessages(projectId: string, recipientId: string) {
 
       const sent = await messagesService.send({ projectId, recipientId, content });
 
-      // Reemplazar el optimistic con el real
       setMessages((prev) => prev.map((m) => (m.id === tempId ? sent : m)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al enviar');
-      // Revertir optimistic
       setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
     } finally {
       setIsSending(false);
     }
-  }, [projectId, recipientId, user]);
+  }, [projectId, recipientId]);
 
   return { messages, isLoading, isSending, error, sendMessage };
 }

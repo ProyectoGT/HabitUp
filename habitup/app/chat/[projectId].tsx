@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, ActivityIndicator,
+  View, Text, FlatList,
   KeyboardAvoidingView, Platform, TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import type { Message } from '@/types/models';
+import { Screen, LoadingState, EmptyState } from '@/components/ui';
+import { ArrowLeft, MessageSquareMore } from 'lucide-react-native';
 
 export default function ChatScreen() {
   const { projectId, recipientId, title } = useLocalSearchParams<{
@@ -25,82 +27,93 @@ export default function ChatScreen() {
     recipientId,
   );
 
-  // Scroll al final cuando llegan mensajes nuevos
+  const hasScrolledRef = useRef(false);
+
+  // Scroll al fondo cuando cargan los mensajes iniciales
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 200);
+    }
+  }, [isLoading]);
+
+  // Scroll al final cuando llegan mensajes nuevos (después del inicial)
+  useEffect(() => {
+    if (messages.length > 0 && hasScrolledRef.current) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     }
   }, [messages.length]);
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      {/* Header */}
-      <View className="bg-white px-4 pt-14 pb-3 shadow-sm flex-row items-center gap-3">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-brand text-base">←</Text>
-        </TouchableOpacity>
-        <View className="flex-1">
-          <Text className="font-semibold text-gray-900" numberOfLines={1}>
-            {title ?? 'Proyecto'}
-          </Text>
-          <Text className="text-xs text-gray-400">Chat del proyecto</Text>
+      <Screen safeArea={false} className="flex-1">
+        {/* Header */}
+        <View className="bg-surface px-6 pt-16 pb-4 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-2xl z-10 flex-row items-center gap-4">
+          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
+            <ArrowLeft size={24} color="#6366F1" />
+          </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="text-xl font-extrabold text-text leading-tight" numberOfLines={1}>
+              {title ?? 'Proyecto'}
+            </Text>
+            <Text className="text-sm font-medium text-muted-text mt-0.5">Chat del proyecto</Text>
+          </View>
         </View>
-      </View>
 
-      {/* Mensajes */}
-      {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#2563eb" />
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pt-4 pb-2"
-          renderItem={({ item, index }) => {
-            const isOwn = item.sender_id === user?.id;
-            const prev = messages[index - 1];
-            const showDateSeparator =
-              !prev ||
-              new Date(item.created_at).toDateString() !==
-                new Date(prev.created_at).toDateString();
+        {/* Mensajes */}
+        {isLoading ? (
+          <LoadingState />
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerClassName="px-4 pt-6 pb-2 flex-grow"
+            renderItem={({ item, index }) => {
+              const isOwn = item.sender_id === user?.id;
+              const prev = messages[index - 1];
+              const showDateSeparator =
+                !prev ||
+                new Date(item.created_at).toDateString() !==
+                  new Date(prev.created_at).toDateString();
 
-            return (
-              <>
-                {showDateSeparator && (
-                  <DateSeparator date={item.created_at} />
-                )}
-                <MessageBubble message={item} isOwn={isOwn} />
-              </>
-            );
-          }}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-16">
-              <Text className="text-4xl mb-3">💬</Text>
-              <Text className="text-gray-500 text-center">
-                Sé el primero en escribir un mensaje
-              </Text>
-            </View>
-          }
-          onContentSizeChange={() =>
-            listRef.current?.scrollToEnd({ animated: false })
-          }
-        />
-      )}
+              return (
+                <View key={item.id}>
+                  {showDateSeparator && (
+                    <DateSeparator date={item.created_at} />
+                  )}
+                  <MessageBubble message={item} isOwn={isOwn} />
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              <EmptyState
+                icon={<MessageSquareMore size={40} color="#6366F1" />}
+                title="Sin mensajes"
+                description="Envía un mensaje para comenzar la conversación sobre este proyecto."
+              />
+            }
+            onContentSizeChange={() =>
+              listRef.current?.scrollToEnd({ animated: false })
+            }
+          />
+        )}
 
-      {error && (
-        <Text className="text-red-500 text-xs text-center py-1 bg-red-50">
-          {error}
-        </Text>
-      )}
+        {error && (
+          <View className="bg-error/10 py-2 px-4 border-t border-error/20">
+            <Text className="text-error text-xs font-semibold text-center">
+              {error}
+            </Text>
+          </View>
+        )}
 
-      {/* Input */}
-      <ChatInput onSend={sendMessage} isSending={isSending} />
+        {/* Input */}
+        <ChatInput onSend={sendMessage} isSending={isSending} />
+      </Screen>
     </KeyboardAvoidingView>
   );
 }
@@ -112,8 +125,8 @@ function DateSeparator({ date }: { date: string }) {
     month: 'long',
   });
   return (
-    <View className="items-center my-3">
-      <Text className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full capitalize">
+    <View className="items-center my-4">
+      <Text className="text-[11px] font-bold text-muted-text bg-border/40 px-3 py-1.5 rounded-full capitalize">
         {label}
       </Text>
     </View>

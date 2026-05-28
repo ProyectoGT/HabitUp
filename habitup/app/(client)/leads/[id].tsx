@@ -1,10 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { quotesService } from '@/services/quotes.service';
-import { formatCurrency, formatRelativeTime, formatDate } from '@/utils/formatters';
+import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
+import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
+import { Screen, Card, Badge, Button, LoadingState, NotFoundState, EmptyState, ErrorState } from '@/components/ui';
+import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, Check, X, Inbox } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 type QuoteWithProfile = Quote & {
   professional_profiles?: {
@@ -18,6 +22,9 @@ type QuoteWithProfile = Quote & {
 export default function ClientLeadDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [quotes, setQuotes] = useState<QuoteWithProfile[]>([]);
@@ -51,8 +58,11 @@ export default function ClientLeadDetailScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Aceptar', onPress: async () => {
-            await quotesService.accept(quote.id);
+            const project = await quotesService.accept(quote.id);
             await load();
+            if (project?.id) {
+              router.replace(`/(client)/projects/${project.id}`);
+            }
           },
         },
       ],
@@ -83,133 +93,167 @@ export default function ClientLeadDetailScreen() {
     ]);
   };
 
-  if (isLoading) return <View className="flex-1 items-center justify-center"><ActivityIndicator color="#2563eb" /></View>;
-  if (!lead) return <View className="flex-1 items-center justify-center"><Text className="text-gray-500">Solicitud no encontrada</Text></View>;
+  if (isLoading) return (
+    <Screen safeArea>
+      <LoadingState />
+    </Screen>
+  );
+  if (!lead) return (
+    <Screen safeArea>
+      <NotFoundState message="Solicitud no encontrada" onBack={() => router.back()} />
+    </Screen>
+  );
 
-  const canInteract = lead.status === 'activo' || lead.status === 'en_negociacion';
+  const canInteract = lead.status === LEAD_STATUS.ACTIVE || lead.status === LEAD_STATUS.NEGOTIATING;
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <Screen safeArea={false} className="flex-1">
       <ScrollView
         contentContainerClassName="pb-10"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor="#6366F1" 
+            colors={['#6366F1']} 
+          />
+        }
       >
         {/* Header */}
-        <View className="bg-white px-5 pt-14 pb-5 shadow-sm">
-          <TouchableOpacity onPress={() => router.back()} className="mb-4">
-            <Text className="text-brand">← Volver</Text>
+        <View className="bg-surface px-6 pt-16 pb-6 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-3xl z-10">
+          <TouchableOpacity onPress={() => router.back()} className="mb-4 flex-row items-center">
+            <ArrowLeft size={20} color="#6366F1" />
+            <Text className="text-primary font-semibold text-base ml-2">Volver</Text>
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-900">{lead.title}</Text>
-          <Text className="text-sm text-gray-500 mt-1">{formatDate(lead.created_at)}</Text>
+          <Text className="text-2xl font-extrabold text-text mb-1 leading-tight">{lead.title}</Text>
+          <Text className="text-muted-text text-sm font-medium">Publicado el {formatDate(lead.created_at)}</Text>
         </View>
 
         {/* Detalle */}
-        <View className="bg-white mx-4 mt-4 rounded-2xl p-5 shadow-sm">
-          <Text className="text-gray-700 leading-6 mb-4">{lead.description}</Text>
-          <View className="flex-row flex-wrap gap-3">
-            {lead.location_city && <Chip emoji="📍" text={lead.location_city} />}
-            {lead.budget_max && <Chip emoji="💰" text={`hasta ${formatCurrency(lead.budget_max)}`} />}
-            {lead.preferred_start_date && <Chip emoji="📅" text={formatDate(lead.preferred_start_date)} />}
-          </View>
-        </View>
-
-        {/* Presupuestos */}
-        <View className="mx-4 mt-4">
-          <Text className="text-base font-semibold text-gray-900 mb-3">
-            Presupuestos recibidos ({quotes.length})
-          </Text>
-
-          {quotes.length === 0 ? (
-            <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
-              <Text className="text-3xl mb-2">⏳</Text>
-              <Text className="text-gray-500 text-center">Aún no has recibido presupuestos</Text>
+        <View className="px-6 pt-6 gap-6">
+          <Card variant="flat" className="border border-border/50">
+            <Text className="text-text leading-relaxed mb-5">{lead.description}</Text>
+            <View className="flex-row flex-wrap gap-2 border-t border-border/50 pt-4">
+              {lead.location_city && <Chip Icon={MapPin} text={lead.location_city} isDark={isDark} />}
+              {lead.budget_max && <Chip Icon={CircleDollarSign} text={`Hasta ${formatCurrency(lead.budget_max)}`} isDark={isDark} />}
+              {lead.preferred_start_date && <Chip Icon={Calendar} text={formatDate(lead.preferred_start_date)} isDark={isDark} />}
             </View>
-          ) : (
-            quotes.map((quote) => (
-              <QuoteCard
-                key={quote.id}
-                quote={quote}
-                canInteract={canInteract}
-                onAccept={() => onAcceptQuote(quote)}
-                onReject={() => onRejectQuote(quote)}
+          </Card>
+
+          {/* Presupuestos */}
+          <View>
+            <Text className="text-lg font-bold text-text mb-4">
+              Presupuestos recibidos ({quotes.length})
+            </Text>
+
+            {quotes.length === 0 ? (
+              <EmptyState
+                icon={<Inbox size={32} color="#6366F1" />}
+                title="Aún no hay presupuestos"
+                description="Los profesionales te enviarán ofertas pronto."
               />
-            ))
+            ) : (
+              quotes.map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  quote={quote}
+                  canInteract={canInteract}
+                  onAccept={() => onAcceptQuote(quote)}
+                  onReject={() => onRejectQuote(quote)}
+                  isDark={isDark}
+                />
+              ))
+            )}
+          </View>
+
+          {/* Cancelar */}
+          {canInteract && (
+            <Button
+              label="Cancelar solicitud"
+              variant="ghost"
+              onPress={onCancelLead}
+              className="mt-4 border border-error bg-error/10"
+              textClassName="text-error"
+            />
           )}
         </View>
-
-        {/* Cancelar */}
-        {canInteract && (
-          <TouchableOpacity onPress={onCancelLead} className="mx-4 mt-6 border border-red-300 py-3 rounded-xl items-center">
-            <Text className="text-red-500 font-medium">Cancelar solicitud</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
 function QuoteCard({
-  quote, canInteract, onAccept, onReject,
+  quote, canInteract, onAccept, onReject, isDark
 }: {
   quote: QuoteWithProfile;
   canInteract: boolean;
   onAccept: () => void;
   onReject: () => void;
+  isDark: boolean;
 }) {
   const pro = quote.professional_profiles;
   const name = pro?.company_name ?? pro?.users?.full_name ?? 'Profesional';
-  const STATUS_STYLE: Record<string, string> = {
-    enviado: 'bg-blue-50 text-brand',
-    visto: 'bg-yellow-50 text-yellow-700',
-    aceptado: 'bg-green-50 text-green-700',
-    rechazado: 'bg-red-50 text-red-500',
-    expirado: 'bg-gray-100 text-gray-400',
+  const STATUS_VARIANT: Record<string, 'info' | 'warning' | 'success' | 'error' | 'default'> = {
+    enviado: 'info',
+    visto: 'warning',
+    aceptado: 'success',
+    rechazado: 'error',
+    expirado: 'default',
   };
 
   return (
-    <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100">
-      <View className="flex-row items-center justify-between mb-2">
-        <Text className="font-semibold text-gray-900">{name}</Text>
-        <Text className={`text-xs px-2 py-0.5 rounded-full ${STATUS_STYLE[quote.status] ?? 'bg-gray-100 text-gray-500'}`}>
-          {quote.status}
-        </Text>
+    <Card className="mb-4">
+      <View className="flex-row items-center justify-between mb-3 border-b border-border/50 pb-3">
+        <Text className="text-base font-bold text-text flex-1 mr-2" numberOfLines={1}>{name}</Text>
+        <Badge label={quote.status} variant={STATUS_VARIANT[quote.status] ?? 'default'} size="sm" />
       </View>
 
-      {pro && (
-        <View className="flex-row items-center gap-2 mb-3">
-          <Text className="text-amber-400 text-sm">★ {pro.avg_rating.toFixed(1)}</Text>
-          {pro.location_city && <Text className="text-gray-400 text-xs">· {pro.location_city}</Text>}
+      <View className="flex-row justify-between items-end mb-4">
+        <View>
+          <Text className="text-3xl font-extrabold text-primary">{formatCurrency(quote.amount)}</Text>
         </View>
-      )}
+        
+        {quote.delivery_days && (
+          <View className="flex-row items-center bg-surface px-2 py-1 rounded-md border border-border">
+            <Clock size={12} color={isDark ? '#94A3B8' : '#64748B'} />
+            <Text className="text-xs font-medium text-muted-text ml-1.5">{quote.delivery_days} días est.</Text>
+          </View>
+        )}
+      </View>
 
-      <Text className="text-2xl font-bold text-brand mb-1">{formatCurrency(quote.amount)}</Text>
-
-      {quote.delivery_days && (
-        <Text className="text-sm text-gray-500 mb-1">⏱ {quote.delivery_days} días estimados</Text>
-      )}
       {quote.description && (
-        <Text className="text-sm text-gray-600 mb-3" numberOfLines={3}>{quote.description}</Text>
+        <Text className="text-sm text-muted-text mb-4 leading-relaxed bg-surface p-3 rounded-xl border border-border/30" numberOfLines={4}>
+          {quote.description}
+        </Text>
       )}
 
-      {canInteract && quote.status === 'enviado' && (
-        <View className="flex-row gap-2 mt-2">
-          <TouchableOpacity onPress={onReject} className="flex-1 border border-gray-300 py-2.5 rounded-xl items-center">
-            <Text className="text-gray-600 font-medium text-sm">Rechazar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onAccept} className="flex-1 bg-brand py-2.5 rounded-xl items-center">
-            <Text className="text-white font-semibold text-sm">Aceptar</Text>
-          </TouchableOpacity>
+      {canInteract && quote.status === QUOTE_STATUS.SENT && (
+        <View className="flex-row gap-3 mt-2 border-t border-border/50 pt-4">
+          <Button
+            label="Rechazar"
+            variant="outline"
+            onPress={onReject}
+            className="flex-1"
+            leftIcon={<X size={16} color={isDark ? '#F87171' : '#EF4444'} />}
+          />
+          <Button
+            label="Aceptar"
+            onPress={onAccept}
+            className="flex-1 shadow-sm shadow-primary/30"
+            leftIcon={<Check size={16} color="#FFF" />}
+          />
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
-function Chip({ emoji, text }: { emoji: string; text: string }) {
+function Chip({ Icon, text, isDark }: { Icon: any; text: string; isDark: boolean }) {
   return (
-    <View className="flex-row items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-full">
-      <Text className="text-sm">{emoji}</Text>
-      <Text className="text-sm text-gray-600">{text}</Text>
+    <View className="flex-row items-center bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+      <Icon size={14} color="#6366F1" />
+      <Text className="text-xs font-semibold text-primary ml-1.5">{text}</Text>
     </View>
   );
 }

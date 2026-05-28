@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics.service';
+import { LEAD_STATUS } from '@/utils/constants';
 import type { Lead } from '@/types/models';
 
 export interface CreateLeadParams {
@@ -14,7 +16,7 @@ export interface CreateLeadParams {
 }
 
 export const leadsService = {
-  async getMyLeads(): Promise<Lead[]> {
+  async getMyLeads() {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug)')
@@ -23,7 +25,7 @@ export const leadsService = {
     return (data ?? []) as Lead[];
   },
 
-  async getById(id: string): Promise<Lead | null> {
+  async getById(id: string) {
     const { data, error } = await supabase
       .from('leads')
       .select('*, categories(name, slug)')
@@ -35,11 +37,37 @@ export const leadsService = {
   },
 
   async getAvailableForProfessional(): Promise<Lead[]> {
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data: profile, error: profileError } = await supabase
+      .from('professional_profiles')
+      .select('id, location_city, location_region, service_radius_km')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile) return [];
+
+    const { data: categories } = await supabase
+      .from('professional_categories')
+      .select('category_id')
+      .eq('professional_id', profile.id);
+
+    const categoryIds = (categories ?? []).map((c: { category_id: string }) => c.category_id);
+    if (categoryIds.length === 0) return [];
+
+    let query = supabase
       .from('leads')
       .select('*, categories(name, slug), users!client_id(full_name, avatar_url)')
-      .eq('status', 'activo')
+      .eq('status', LEAD_STATUS.ACTIVE)
+      .in('category_id', categoryIds)
       .order('created_at', { ascending: false });
+
+    if (profile.location_city) {
+      query = query.eq('location_city', profile.location_city);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as Lead[];
   },
@@ -54,13 +82,19 @@ export const leadsService = {
       .select()
       .single();
     if (error) throw error;
+    trackEvent('lead_published', {
+      lead_id: data.id,
+      category_id: params.category_id,
+      urgency: params.urgency,
+      city: params.location_city,
+    });
     return data as Lead;
   },
 
   async cancel(id: string): Promise<void> {
     const { error } = await supabase
       .from('leads')
-      .update({ status: 'cancelado' })
+      .update({ status: LEAD_STATUS.CANCELLED })
       .eq('id', id);
     if (error) throw error;
   },

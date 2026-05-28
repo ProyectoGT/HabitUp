@@ -1,11 +1,15 @@
-const required = (key: string): string => {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing env var: ${key}`);
-  return value;
-};
+function requireVar(name: string): string {
+  const val = process.env[name];
+  if (!val) throw new Error(`Missing env var: ${name}`);
+  return val;
+}
 
 export const ENV = {
-  SUPABASE_URL: required('EXPO_PUBLIC_SUPABASE_URL'),
-  SUPABASE_ANON_KEY: required('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
-  STRIPE_PUBLISHABLE_KEY: required('EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY'),
+  get SUPABASE_URL() {
+    return requireVar('EXPO_PUBLIC_SUPABASE_URL');
+  },
+  get SUPABASE_ANON_KEY() {
+    return requireVar('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  },
+  STRIPE_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
 } as const;

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
+import { log, setCorrelationId } from '../_shared/logging.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -19,6 +20,8 @@ const CORS = {
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+
+  setCorrelationId(crypto.randomUUID());
 
   try {
     // Autenticar usuario desde el JWT de Supabase
@@ -48,7 +51,7 @@ serve(async (req: Request) => {
       .single();
 
     if (projError || !project) return json({ error: 'Proyecto no encontrado' }, 404);
-    if (project.payment_status !== 'pendiente') {
+    if (!['pendiente'].includes(project.payment_status)) {
       return json({ error: 'Este proyecto ya tiene un pago iniciado o completado' }, 400);
     }
 
@@ -98,12 +101,14 @@ serve(async (req: Request) => {
     // Actualizar payment_status del proyecto
     await supabase
       .from('projects')
-      .update({ payment_status: 'en_proceso' })
+      .update({ payment_status: 'pendiente_pago' })
       .eq('id', project_id);
 
+    log.info('payment-intent created', { projectId, paymentIntentId: paymentIntent.id });
     return json({ client_secret: paymentIntent.client_secret });
   } catch (err) {
-    console.error('create-payment-intent error:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('create-payment-intent error', { error: msg });
     return json({ error: 'Error interno del servidor' }, 500);
   }
 });

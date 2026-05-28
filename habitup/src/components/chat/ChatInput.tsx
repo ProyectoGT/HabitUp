@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, TextInput, TouchableOpacity, ActivityIndicator,
   type TextInput as TextInputType,
 } from 'react-native';
+import { SendHorizonal } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 
 interface Props {
   onSend: (text: string) => void;
@@ -13,6 +15,9 @@ interface Props {
 export function ChatInput({ onSend, isSending, disabled }: Props) {
   const [text, setText] = useState('');
   const inputRef = useRef<TextInputType>(null);
+  
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -22,46 +27,34 @@ export function ChatInput({ onSend, isSending, disabled }: Props) {
     inputRef.current?.clear();
   };
 
+  const canSend = !!text.trim() && !isSending && !disabled;
+
   return (
-    <View className="flex-row items-end px-3 py-2 bg-white border-t border-gray-100 gap-2">
-      <TextInput
-        ref={inputRef}
-        className="flex-1 bg-gray-100 rounded-2xl px-4 py-2.5 text-gray-900 text-sm max-h-28"
-        placeholder="Escribe un mensaje..."
-        value={text}
-        onChangeText={setText}
-        multiline
-        returnKeyType="default"
-        editable={!disabled}
-      />
+    <View className="flex-row items-end px-4 py-3 bg-surface border-t border-border/50 gap-3 pb-8">
+      <View className="flex-1 bg-surface-active rounded-3xl border border-border/50 min-h-[44px] justify-center px-4">
+        <TextInput
+          ref={inputRef}
+          className="text-text text-base py-2 max-h-32"
+          placeholder="Escribe un mensaje..."
+          placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+          value={text}
+          onChangeText={setText}
+          multiline
+          returnKeyType="default"
+          editable={!disabled}
+        />
+      </View>
       <TouchableOpacity
         onPress={handleSend}
-        disabled={!text.trim() || isSending || disabled}
-        className={`w-10 h-10 rounded-full items-center justify-center ${
-          text.trim() && !isSending ? 'bg-brand' : 'bg-gray-200'
+        disabled={!canSend}
+        className={`w-11 h-11 rounded-full items-center justify-center ${
+          canSend ? 'bg-primary shadow-sm shadow-primary/30' : 'bg-surface-active border border-border/50'
         }`}
       >
         {isSending
           ? <ActivityIndicator size="small" color="#fff" />
-          : <SendIcon active={!!text.trim()} />}
+          : <SendHorizonal size={20} color={canSend ? '#fff' : (isDark ? '#64748B' : '#94A3B8')} />}
       </TouchableOpacity>
-    </View>
-  );
-}
-
-function SendIcon({ active }: { active: boolean }) {
-  return (
-    // Flecha de envío usando texto unicode, evita dependencia de iconos
-    <View style={{ transform: [{ rotate: '45deg' }] }}>
-      <View
-        style={{
-          width: 0, height: 0,
-          borderLeftWidth: 8, borderLeftColor: 'transparent',
-          borderRightWidth: 8, borderRightColor: 'transparent',
-          borderBottomWidth: 14,
-          borderBottomColor: active ? 'white' : '#9ca3af',
-        }}
-      />
     </View>
   );
 }

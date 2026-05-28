@@ -1,5 +1,8 @@
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React from 'react';
+import { View, Text } from 'react-native';
 import { formatRating } from '@/utils/formatters';
+import { Card, Avatar, Badge, VerifiedBadge } from '@/components/ui';
+import { ShieldCheck, Star, MapPin } from 'lucide-react-native';
 
 export interface ProfessionalCardData {
   id: string;
@@ -16,6 +19,8 @@ export interface ProfessionalCardData {
   categories: string | null;
   is_active: boolean;
   accepts_new_leads: boolean;
+  nif_cif_verified?: boolean;
+  documents_verified?: boolean;
 }
 
 interface Props {
@@ -26,69 +31,75 @@ interface Props {
 export function ProfessionalCard({ professional, onPress }: Props) {
   const {
     full_name, avatar_url, company_name, description, avg_rating,
-    total_reviews, location_city, location_region, categories, accepts_new_leads,
+    total_reviews, location_city, categories, accepts_new_leads,
+    nif_cif_verified, documents_verified,
   } = professional;
 
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100"
-    >
-      <View className="flex-row gap-3">
-        {/* Avatar */}
-        <View className="w-14 h-14 rounded-full bg-gray-100 items-center justify-center overflow-hidden">
-          {avatar_url ? (
-            <Image source={{ uri: avatar_url }} className="w-full h-full" />
-          ) : (
-            <Text className="text-2xl">{full_name.charAt(0).toUpperCase()}</Text>
-          )}
-        </View>
+  const isVerified = nif_cif_verified && documents_verified && (total_reviews ?? 0) > 0;
+  const isPartiallyVerified = nif_cif_verified || documents_verified;
 
-        {/* Info */}
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
-              {company_name ?? full_name}
-            </Text>
+  return (
+    <Card onPress={onPress} className="mb-4">
+      <View className="flex-row gap-4 mb-3">
+        <Avatar 
+          url={avatar_url} 
+          fallback={full_name} 
+          size="lg" 
+        />
+
+        <View className="flex-1 justify-center">
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1 mr-2">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-lg font-bold text-text mb-0.5" numberOfLines={1}>
+                  {company_name ?? full_name}
+                </Text>
+                {isVerified && <VerifiedBadge level="verified" size="sm" />}
+                {!isVerified && isPartiallyVerified && <VerifiedBadge level="partial" size="sm" />}
+              </View>
+            </View>
             {!accepts_new_leads && (
-              <Text className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">No disponible</Text>
+              <Badge label="No disponible" variant="error" size="sm" />
             )}
           </View>
 
           {company_name && (
-            <Text className="text-sm text-gray-500" numberOfLines={1}>{full_name}</Text>
+            <Text className="text-sm font-medium text-muted-text mb-1" numberOfLines={1}>
+              {full_name}
+            </Text>
           )}
 
-          {/* Rating */}
-          <View className="flex-row items-center gap-1 mt-1">
-            <Text className="text-amber-400 text-sm">★</Text>
-            <Text className="text-sm font-medium text-gray-800">{formatRating(avg_rating)}</Text>
-            <Text className="text-sm text-gray-400">({total_reviews})</Text>
+          <View className="flex-row items-center gap-2 mt-1">
+            <View className="flex-row items-center">
+              <Star size={14} color="#F59E0B" fill="#F59E0B" />
+              <Text className="text-sm font-bold text-text ml-1">{formatRating(avg_rating)}</Text>
+              <Text className="text-sm text-muted-text ml-1">({total_reviews})</Text>
+            </View>
+            
             {location_city && (
-              <>
-                <Text className="text-gray-300 mx-1">·</Text>
-                <Text className="text-sm text-gray-500">{location_city}</Text>
-              </>
+              <View className="flex-row items-center">
+                <Text className="text-border mx-1">•</Text>
+                <MapPin size={12} color="#94A3B8" />
+                <Text className="text-xs text-muted-text ml-1">{location_city}</Text>
+              </View>
             )}
           </View>
         </View>
       </View>
 
-      {/* Descripción */}
       {description && (
-        <Text className="text-sm text-gray-600 mt-2" numberOfLines={2}>{description}</Text>
+        <Text className="text-sm text-text leading-relaxed mt-1" numberOfLines={2}>
+          {description}
+        </Text>
       )}
 
-      {/* Categorías */}
       {categories && (
-        <View className="flex-row flex-wrap gap-1 mt-2">
+        <View className="flex-row flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
           {categories.split(', ').slice(0, 3).map((cat) => (
-            <Text key={cat} className="text-xs bg-blue-50 text-brand px-2 py-0.5 rounded-full">
-              {cat}
-            </Text>
+            <Badge key={cat} label={cat} variant="info" size="sm" />
           ))}
         </View>
       )}
-    </TouchableOpacity>
+    </Card>
   );
 }

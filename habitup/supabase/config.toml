@@ -1,0 +1,82 @@
+# =====================================================
+# Supabase CLI Configuration — HabitUp
+# Local development:  supabase start
+# Remote linking:     supabase link --project-ref <id>
+# Generate types:     supabase gen types typescript --local > database.types.ts
+# =====================================================
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[auth]
+enabled = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# ── Edge Functions ──────────────────────────────────
+[functions.send-push-notification]
+# verify_jwt is false because this function is called
+# by DB triggers via net.http_post with a shared secret,
+# NOT by the mobile client directly.
+# The shared secret check happens inside the function itself.
+verify_jwt = false
+
+[functions.stripe-webhook]
+# verify_jwt is false because Stripe sends webhooks directly,
+# not via an authenticated user session.
+# Signature verification is done inside the function itself.
+verify_jwt = false
+
+# ── Storage buckets ─────────────────────────────────
+# Buckets are CREATED by migration 011, not by config.toml.
+# These entries serve as documentation for local dev.
+[storage.buckets.avatars]
+public = true
+file_size_limit = 5242880
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+[storage.buckets.lead-images]
+public = true
+file_size_limit = 10485760
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+[storage.buckets.portfolio-images]
+public = true
+file_size_limit = 10485760
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+[storage.buckets.verification-documents]
+public = false
+file_size_limit = 20971520
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+
+# ── Custom SMTP (production only) ───────────────────
+# [auth.smtp]
+# host = "smtp.sendgrid.net"
+# port = 587
+# user = "apikey"
+# pass = "your-sendgrid-api-key"
+# admin_email = "noreply@habitup.app"
+# sender_name = "HabitUp"

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
+import { log, setCorrelationId } from '../_shared/logging.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -12,20 +13,55 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
 );
 
+const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
+
 serve(async (req: Request) => {
+  setCorrelationId(crypto.randomUUID());
+
   const body = await req.text();
   const sig = req.headers.get('stripe-signature') ?? '';
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
 
   let event: Stripe.Event;
+  let payload: Record<string, unknown>;
 
+  // 1. Verify signature
   try {
     event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret);
+    payload = JSON.parse(body);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('Stripe webhook: signature verification failed', { error: msg });
     return new Response('Invalid signature', { status: 400 });
   }
 
+  log.info('Stripe webhook: received event', { stripeEventId: event.id, eventType: event.type });
+
+  // 2. Idempotency — try to record event; if already exists, skip
+  try {
+    const { error: insertError } = await supabase
+      .from('stripe_events')
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        payload,
+      });
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        log.info('Stripe webhook: duplicate event', { stripeEventId: event.id, eventType: event.type });
+        return new Response(JSON.stringify({ received: true, duplicate: true }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw insertError;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('Stripe webhook: failed to record event', { stripeEventId: event.id, error: msg });
+    return new Response('Internal server error', { status: 500 });
+  }
+
+  // 3. Process event
   try {
     switch (event.type) {
       case 'payment_intent.succeeded':
@@ -36,32 +72,79 @@ serve(async (req: Request) => {
         await handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
         break;
 
+      case 'payment_intent.canceled':
+        await handlePaymentCanceled(event.data.object as Stripe.PaymentIntent);
+        break;
+
+      case 'charge.refunded':
+        await handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+
+      case 'charge.dispute.created':
+        await handleDisputeCreated(event.data.object as Stripe.Dispute);
+        break;
+
+      case 'charge.dispute.closed':
+        await handleDisputeClosed(event.data.object as Stripe.Dispute);
+        break;
+
       case 'account.updated':
         await handleAccountUpdated(event.data.object as Stripe.Account);
         break;
 
       default:
-        console.log(`Evento no manejado: ${event.type}`);
+        log.info('Stripe webhook: unhandled event type', { eventType: event.type });
     }
+
+    // 4. Mark as processed (or skipped for unknown types)
+    const HANDLED_EVENTS = [
+      'payment_intent.succeeded', 'payment_intent.payment_failed',
+      'payment_intent.canceled',
+      'charge.refunded', 'charge.dispute.created', 'charge.dispute.closed',
+      'account.updated',
+    ];
+    const finalStatus = HANDLED_EVENTS.includes(event.type)
+      ? 'processed'
+      : 'skipped';
+
+    await supabase
+      .from('stripe_events')
+      .update({ status: finalStatus, processed_at: new Date().toISOString() })
+      .eq('stripe_event_id', event.id);
+
+    log.info('Stripe webhook: event processed', { stripeEventId: event.id, eventType: event.type, finalStatus });
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('Error procesando webhook:', err);
-    return new Response('Error interno', { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    log.error('Stripe webhook: error processing event', { stripeEventId: event.id, eventType: event.type, error: errorMessage });
+
+    await supabase
+      .from('stripe_events')
+      .update({
+        status: 'failed',
+        error: errorMessage,
+        processed_at: new Date().toISOString(),
+      })
+      .eq('stripe_event_id', event.id);
+
+    return new Response('Internal server error', { status: 500 });
   }
 });
 
 // ── Handlers ──────────────────────────────────────────
 
 async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
-  const { project_id } = intent.metadata;
-  if (!project_id) return;
+  const projectId = intent.metadata.project_id;
+  if (!projectId) {
+    log.warn('Stripe webhook: payment_intent.succeeded missing project_id', { paymentIntentId: intent.id });
+    return;
+  }
 
-  // Actualizar payment a 'completado' — esto dispara el trigger
-  // create_commission_on_payment que también marca el proyecto como completado
-  const { error } = await supabase
+  // Actualizar payments.status (dispara trigger create_commission_on_payment)
+  const { error: payError } = await supabase
     .from('payments')
     .update({
       status: 'completado',
@@ -72,32 +155,211 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
     })
     .eq('stripe_payment_intent_id', intent.id);
 
-  if (error) throw error;
+  if (payError) {
+    log.error('Stripe webhook: failed to update payment', { paymentIntentId: intent.id, error: payError.message });
+    throw payError;
+  }
+
+  const { error: projError } = await supabase
+    .from('projects')
+    .update({ payment_status: 'completado' })
+    .eq('id', projectId);
+
+  if (projError) {
+    log.error('Stripe webhook: failed to update project payment_status', { projectId, error: projError.message });
+    throw projError;
+  }
+
+  log.info('Stripe webhook: payment completed', { paymentIntentId: intent.id, projectId });
 }
 
 async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
-  const { project_id } = intent.metadata;
-  if (!project_id) return;
+  const projectId = intent.metadata.project_id;
+  if (!projectId) {
+    log.warn('Stripe webhook: payment_intent.payment_failed missing project_id', { paymentIntentId: intent.id });
+    return;
+  }
+
+  const { error: paymentError } = await supabase
+    .from('payments')
+    .update({ status: 'fallido' })
+    .eq('stripe_payment_intent_id', intent.id);
+
+  if (paymentError) {
+    log.error('Stripe webhook: failed to update payment status to fallido', { error: paymentError.message });
+  }
+
+  const { error: projectError } = await supabase
+    .from('projects')
+    .update({ payment_status: 'fallido' })
+    .eq('id', projectId);
+
+  if (projectError) {
+    log.error('Stripe webhook: failed to update project payment_status', { projectId, error: projectError.message });
+  }
+
+  if (paymentError || projectError) {
+    throw paymentError ?? projectError;
+  }
+
+  log.info('Stripe webhook: payment marked as fallido', { paymentIntentId: intent.id, projectId });
+}
+
+async function handlePaymentCanceled(intent: Stripe.PaymentIntent) {
+  const projectId = intent.metadata.project_id;
+  if (!projectId) {
+    log.warn('Stripe webhook: payment_intent.canceled missing project_id', { paymentIntentId: intent.id });
+    return;
+  }
 
   await supabase
     .from('payments')
     .update({ status: 'fallido' })
     .eq('stripe_payment_intent_id', intent.id);
 
+  // Reabrir posibilidad de pago — cliente puede reintentar
   await supabase
     .from('projects')
-    .update({ payment_status: 'fallido' })
-    .eq('id', project_id);
+    .update({ payment_status: 'pendiente' })
+    .eq('id', projectId);
+
+  log.info('Stripe webhook: payment canceled', { paymentIntentId: intent.id, projectId });
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const intentId = typeof charge.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+
+  if (!intentId) {
+    log.warn('Stripe webhook: charge.refunded missing payment_intent');
+    return;
+  }
+
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('project_id')
+    .eq('stripe_payment_intent_id', intentId)
+    .maybeSingle();
+
+  if (!payment) {
+    log.warn('Stripe webhook: charge.refunded no payment found', { paymentIntentId: intentId });
+    return;
+  }
+
+  await supabase
+    .from('payments')
+    .update({ status: 'reembolsado' })
+    .eq('stripe_payment_intent_id', intentId);
+
+  await supabase
+    .from('projects')
+    .update({ payment_status: 'reembolsado' })
+    .eq('id', payment.project_id);
+
+  log.info('Stripe webhook: charge refunded', { paymentIntentId: intentId, projectId: payment.project_id });
+}
+
+async function handleDisputeCreated(dispute: Stripe.Dispute) {
+  const intentId = dispute.payment_intent?.id;
+  if (!intentId) {
+    log.warn('Stripe webhook: dispute.created missing payment_intent');
+    return;
+  }
+
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('project_id')
+    .eq('stripe_payment_intent_id', intentId)
+    .maybeSingle();
+
+  if (!payment) {
+    log.warn('Stripe webhook: dispute.created no payment found', { paymentIntentId: intentId });
+    return;
+  }
+
+  await supabase
+    .from('payments')
+    .update({ status: 'disputa' })
+    .eq('stripe_payment_intent_id', intentId);
+
+  await supabase
+    .from('projects')
+    .update({ payment_status: 'disputa' })
+    .eq('id', payment.project_id);
+
+  log.info('Stripe webhook: dispute created', { paymentIntentId: intentId, projectId: payment.project_id });
+}
+
+async function handleDisputeClosed(dispute: Stripe.Dispute) {
+  const intentId = dispute.payment_intent?.id;
+  if (!intentId) {
+    log.warn('Stripe webhook: dispute.closed missing payment_intent');
+    return;
+  }
+
+  // 'won' → Stripe ruled in platform's favor, restore payment
+  // 'lost' → payment was reversed
+  const resolution = dispute.status === 'won' ? 'completado' : 'reembolsado';
+
+  const { data: payment } = await supabase
+    .from('payments')
+    .select('project_id')
+    .eq('stripe_payment_intent_id', intentId)
+    .maybeSingle();
+
+  if (!payment) {
+    log.warn('Stripe webhook: dispute.closed no payment found', { paymentIntentId: intentId });
+    return;
+  }
+
+  await supabase
+    .from('payments')
+    .update({ status: resolution })
+    .eq('stripe_payment_intent_id', intentId);
+
+  await supabase
+    .from('projects')
+    .update({ payment_status: resolution })
+    .eq('id', payment.project_id);
+
+  log.info('Stripe webhook: dispute closed', { paymentIntentId: intentId, resolution });
 }
 
 async function handleAccountUpdated(account: Stripe.Account) {
-  // Actualizar si la cuenta Connect del profesional está habilitada para cobros
-  const enabled =
-    account.charges_enabled === true &&
-    account.payouts_enabled === true;
+  const chargesOk = account.charges_enabled === true;
+  const payoutsOk = account.payouts_enabled === true;
+  const enabled = chargesOk && payoutsOk;
 
-  await supabase
+  // Derivar estado granular desde el objeto Account
+  let status: string;
+  if (chargesOk && payoutsOk && account.details_submitted) {
+    status = 'active';
+  } else if (account.requirements?.disabled_reason !== null) {
+    status = 'disabled';
+  } else if (account.requirements?.past_due && account.requirements.past_due.length > 0) {
+    status = 'restricted';
+  } else if (account.requirements?.currently_due && account.requirements.currently_due.length > 0) {
+    status = 'pending';
+  } else if (account.details_submitted) {
+    // details submitted pero aun no activo — Stripe esta revisando
+    status = 'pending';
+  } else {
+    status = 'pending';
+  }
+
+  const { error } = await supabase
     .from('professional_profiles')
-    .update({ stripe_account_enabled: enabled })
+    .update({
+      stripe_account_enabled: enabled,
+      stripe_account_status: status,
+    })
     .eq('stripe_account_id', account.id);
+
+  if (error) {
+    log.error('Stripe webhook: failed to update account', { accountId: account.id, error: error.message });
+    throw error;
+  }
+
+  log.info('Stripe webhook: account updated', { accountId: account.id, enabled, status });
 }
