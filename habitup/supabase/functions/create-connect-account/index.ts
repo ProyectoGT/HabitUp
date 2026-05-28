@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
+import { log, setCorrelationId } from '../_shared/logging.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -19,6 +20,8 @@ const CORS = {
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+
+  setCorrelationId(crypto.randomUUID());
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -80,9 +83,11 @@ serve(async (req: Request) => {
       type: 'account_onboarding',
     });
 
+    log.info('connect-account success', { userId: user.id, accountId });
     return json({ url: accountLink.url, account_id: accountId });
   } catch (err) {
-    console.error('create-connect-account error:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('create-connect-account error', { error: msg });
     return json({ error: 'Error interno del servidor' }, 500);
   }
 });

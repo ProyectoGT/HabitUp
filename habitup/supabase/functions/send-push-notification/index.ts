@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { log, setCorrelationId } from '../_shared/logging.ts';
 
 interface PushPayload {
   token: string;
@@ -47,6 +48,8 @@ serve(async (req: Request) => {
     );
   }
 
+  setCorrelationId(crypto.randomUUID());
+
   try {
     const payload: PushPayload = await req.json();
 
@@ -94,7 +97,7 @@ serve(async (req: Request) => {
     const pushMessage = expoResult?.data?.[0]?.message;
 
     if (pushStatus === 'error') {
-      console.error('Expo push error:', pushMessage);
+      log.error('Expo push error', { pushMessage, userId: payload.data?.userId });
 
       // If the token is invalid, ask the DB to flag this user
       const isInvalidToken = pushMessage?.includes('Invalid') ||
@@ -131,7 +134,8 @@ serve(async (req: Request) => {
       },
     );
   } catch (err) {
-    console.error('send-push-notification error:', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('send-push-notification error', { error: msg });
     return new Response(
       JSON.stringify({ error: 'Error interno del servidor' }),
       {

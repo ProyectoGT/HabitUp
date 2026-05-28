@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14?target=deno';
+import { log, setCorrelationId } from '../_shared/logging.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   apiVersion: '2023-10-16',
@@ -15,6 +16,8 @@ const supabase = createClient(
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
 
 serve(async (req: Request) => {
+  setCorrelationId(crypto.randomUUID());
+
   const body = await req.text();
   const sig = req.headers.get('stripe-signature') ?? '';
 
@@ -26,11 +29,12 @@ serve(async (req: Request) => {
     event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret);
     payload = JSON.parse(body);
   } catch (err) {
-    console.error('Stripe webhook: signature verification failed', err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('Stripe webhook: signature verification failed', { error: msg });
     return new Response('Invalid signature', { status: 400 });
   }
 
-  console.log(`Stripe webhook: received event ${event.id} (${event.type})`);
+  log.info('Stripe webhook: received event', { stripeEventId: event.id, eventType: event.type });
 
   // 2. Idempotency — try to record event; if already exists, skip
   try {
@@ -44,7 +48,7 @@ serve(async (req: Request) => {
 
     if (insertError) {
       if (insertError.code === '23505') {
-        console.log(`Stripe webhook: duplicate event ${event.id} (${event.type}), skipping`);
+        log.info('Stripe webhook: duplicate event', { stripeEventId: event.id, eventType: event.type });
         return new Response(JSON.stringify({ received: true, duplicate: true }), {
           headers: { 'Content-Type': 'application/json' },
         });
@@ -52,7 +56,8 @@ serve(async (req: Request) => {
       throw insertError;
     }
   } catch (err) {
-    console.error(`Stripe webhook: failed to record event ${event.id}:`, err);
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error('Stripe webhook: failed to record event', { stripeEventId: event.id, error: msg });
     return new Response('Internal server error', { status: 500 });
   }
 
@@ -88,7 +93,7 @@ serve(async (req: Request) => {
         break;
 
       default:
-        console.log(`Stripe webhook: unhandled event type ${event.type}`);
+        log.info('Stripe webhook: unhandled event type', { eventType: event.type });
     }
 
     // 4. Mark as processed (or skipped for unknown types)
@@ -107,14 +112,14 @@ serve(async (req: Request) => {
       .update({ status: finalStatus, processed_at: new Date().toISOString() })
       .eq('stripe_event_id', event.id);
 
-    console.log(`Stripe webhook: event ${event.id} (${event.type}) → ${finalStatus}`);
+    log.info('Stripe webhook: event processed', { stripeEventId: event.id, eventType: event.type, finalStatus });
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error(`Stripe webhook: error processing event ${event.id} (${event.type}):`, errorMessage);
+    log.error('Stripe webhook: error processing event', { stripeEventId: event.id, eventType: event.type, error: errorMessage });
 
     await supabase
       .from('stripe_events')
@@ -134,7 +139,7 @@ serve(async (req: Request) => {
 async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
   const projectId = intent.metadata.project_id;
   if (!projectId) {
-    console.warn(`Stripe webhook: payment_intent.succeeded ${intent.id} missing project_id in metadata`);
+    log.warn('Stripe webhook: payment_intent.succeeded missing project_id', { paymentIntentId: intent.id });
     return;
   }
 
@@ -151,28 +156,27 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
     .eq('stripe_payment_intent_id', intent.id);
 
   if (payError) {
-    console.error(`Stripe webhook: failed to update payment ${intent.id}:`, payError.message);
+    log.error('Stripe webhook: failed to update payment', { paymentIntentId: intent.id, error: payError.message });
     throw payError;
   }
 
-  // Actualizar SOLO estado financiero del proyecto (no toca projects.status)
   const { error: projError } = await supabase
     .from('projects')
     .update({ payment_status: 'completado' })
     .eq('id', projectId);
 
   if (projError) {
-    console.error(`Stripe webhook: failed to update project ${projectId} payment_status:`, projError.message);
+    log.error('Stripe webhook: failed to update project payment_status', { projectId, error: projError.message });
     throw projError;
   }
 
-  console.log(`Stripe webhook: payment ${intent.id} completado, project ${projectId} payment_status → completado`);
+  log.info('Stripe webhook: payment completed', { paymentIntentId: intent.id, projectId });
 }
 
 async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
   const projectId = intent.metadata.project_id;
   if (!projectId) {
-    console.warn(`Stripe webhook: payment_intent.payment_failed ${intent.id} missing project_id in metadata`);
+    log.warn('Stripe webhook: payment_intent.payment_failed missing project_id', { paymentIntentId: intent.id });
     return;
   }
 
@@ -182,7 +186,7 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
     .eq('stripe_payment_intent_id', intent.id);
 
   if (paymentError) {
-    console.error(`Stripe webhook: failed to update payment status to fallido:`, paymentError.message);
+    log.error('Stripe webhook: failed to update payment status to fallido', { error: paymentError.message });
   }
 
   const { error: projectError } = await supabase
@@ -191,20 +195,20 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
     .eq('id', projectId);
 
   if (projectError) {
-    console.error(`Stripe webhook: failed to update project ${projectId} payment_status:`, projectError.message);
+    log.error('Stripe webhook: failed to update project payment_status', { projectId, error: projectError.message });
   }
 
   if (paymentError || projectError) {
     throw paymentError ?? projectError;
   }
 
-  console.log(`Stripe webhook: payment ${intent.id} marked as fallido, project ${projectId} updated`);
+  log.info('Stripe webhook: payment marked as fallido', { paymentIntentId: intent.id, projectId });
 }
 
 async function handlePaymentCanceled(intent: Stripe.PaymentIntent) {
   const projectId = intent.metadata.project_id;
   if (!projectId) {
-    console.warn(`Stripe webhook: payment_intent.canceled ${intent.id} missing project_id in metadata`);
+    log.warn('Stripe webhook: payment_intent.canceled missing project_id', { paymentIntentId: intent.id });
     return;
   }
 
@@ -219,7 +223,7 @@ async function handlePaymentCanceled(intent: Stripe.PaymentIntent) {
     .update({ payment_status: 'pendiente' })
     .eq('id', projectId);
 
-  console.log(`Stripe webhook: payment ${intent.id} canceled, project ${projectId} payment_status → pendiente`);
+  log.info('Stripe webhook: payment canceled', { paymentIntentId: intent.id, projectId });
 }
 
 async function handleChargeRefunded(charge: Stripe.Charge) {
@@ -228,7 +232,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     : charge.payment_intent?.id;
 
   if (!intentId) {
-    console.warn('Stripe webhook: charge.refunded missing payment_intent');
+    log.warn('Stripe webhook: charge.refunded missing payment_intent');
     return;
   }
 
@@ -239,7 +243,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     .maybeSingle();
 
   if (!payment) {
-    console.warn(`Stripe webhook: charge.refunded no payment found for intent ${intentId}`);
+    log.warn('Stripe webhook: charge.refunded no payment found', { paymentIntentId: intentId });
     return;
   }
 
@@ -253,13 +257,13 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     .update({ payment_status: 'reembolsado' })
     .eq('id', payment.project_id);
 
-  console.log(`Stripe webhook: charge refunded for intent ${intentId}, project ${payment.project_id} → reembolsado`);
+  log.info('Stripe webhook: charge refunded', { paymentIntentId: intentId, projectId: payment.project_id });
 }
 
 async function handleDisputeCreated(dispute: Stripe.Dispute) {
   const intentId = dispute.payment_intent?.id;
   if (!intentId) {
-    console.warn('Stripe webhook: dispute.created missing payment_intent');
+    log.warn('Stripe webhook: dispute.created missing payment_intent');
     return;
   }
 
@@ -270,7 +274,7 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
     .maybeSingle();
 
   if (!payment) {
-    console.warn(`Stripe webhook: dispute.created no payment found for intent ${intentId}`);
+    log.warn('Stripe webhook: dispute.created no payment found', { paymentIntentId: intentId });
     return;
   }
 
@@ -284,13 +288,13 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
     .update({ payment_status: 'disputa' })
     .eq('id', payment.project_id);
 
-  console.log(`Stripe webhook: dispute created for intent ${intentId}, project ${payment.project_id} → disputa`);
+  log.info('Stripe webhook: dispute created', { paymentIntentId: intentId, projectId: payment.project_id });
 }
 
 async function handleDisputeClosed(dispute: Stripe.Dispute) {
   const intentId = dispute.payment_intent?.id;
   if (!intentId) {
-    console.warn('Stripe webhook: dispute.closed missing payment_intent');
+    log.warn('Stripe webhook: dispute.closed missing payment_intent');
     return;
   }
 
@@ -305,7 +309,7 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
     .maybeSingle();
 
   if (!payment) {
-    console.warn(`Stripe webhook: dispute.closed no payment found for intent ${intentId}`);
+    log.warn('Stripe webhook: dispute.closed no payment found', { paymentIntentId: intentId });
     return;
   }
 
@@ -319,7 +323,7 @@ async function handleDisputeClosed(dispute: Stripe.Dispute) {
     .update({ payment_status: resolution })
     .eq('id', payment.project_id);
 
-  console.log(`Stripe webhook: dispute closed for intent ${intentId}, resolution ${resolution}`);
+  log.info('Stripe webhook: dispute closed', { paymentIntentId: intentId, resolution });
 }
 
 async function handleAccountUpdated(account: Stripe.Account) {
@@ -353,9 +357,9 @@ async function handleAccountUpdated(account: Stripe.Account) {
     .eq('stripe_account_id', account.id);
 
   if (error) {
-    console.error(`Stripe webhook: failed to update account ${account.id}:`, error.message);
+    log.error('Stripe webhook: failed to update account', { accountId: account.id, error: error.message });
     throw error;
   }
 
-  console.log(`Stripe webhook: account ${account.id} → enabled=${enabled}, status=${status}`);
+  log.info('Stripe webhook: account updated', { accountId: account.id, enabled, status });
 }

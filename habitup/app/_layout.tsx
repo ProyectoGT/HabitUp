@@ -7,6 +7,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { USER_TYPES } from '@/utils/constants';
 import { ENV } from '@/config/env';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { initSentry } from '@/services/observability';
+
+initSentry();
 
 // Stripe no soporta web — se carga solo en nativo
 const NativeStripeWrapper =
@@ -75,9 +79,11 @@ export default function RootLayout() {
     : {};
 
   return (
-    <StripeWrapper {...stripeProps}>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
-    </StripeWrapper>
+    <ErrorBoundary>
+      <StripeWrapper {...stripeProps}>
+        <StatusBar style="auto" />
+        <Stack screenOptions={{ headerShown: false }} />
+      </StripeWrapper>
+    </ErrorBoundary>
   );
 }
