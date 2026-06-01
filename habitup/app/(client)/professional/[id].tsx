@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { usePublicProfile, getTrustLevel } from '@/hooks/usePublicProfile';
 import { formatRating } from '@/utils/formatters';
 import { Screen, Button, Avatar, Badge, Card, VerifiedBadge } from '@/components/ui';
-import { ArrowLeft, Star, MapPin, ShieldCheck, Clock, Briefcase, CheckCircle2, Award } from 'lucide-react-native';
+import { ArrowLeft, Star, MapPin, ShieldCheck, Clock, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export default function ProfessionalDetailScreen() {

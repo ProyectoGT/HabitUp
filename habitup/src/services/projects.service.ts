@@ -1,7 +1,49 @@
 import { supabase } from './supabase';
 import { quotesService } from './quotes.service';
 import type { Project, ProjectStatus, ProjectWithDetails } from '@/types/models';
+import type { Database } from '@/types/database.types';
 import { PROJECT_STATUS } from '@/utils/constants';
+
+type PublicProfessionalRow = Pick<
+  Database['public']['Views']['professionals_with_categories']['Row'],
+  'id' | 'user_id' | 'company_name' | 'full_name' | 'avatar_url'
+>;
+
+async function attachPublicProfessionals(
+  projects: ProjectWithDetails[],
+): Promise<ProjectWithDetails[]> {
+  const ids = [...new Set(projects.map((project) => project.professional_id))];
+  if (ids.length === 0) return projects;
+
+  const { data, error } = await supabase
+    .from('professionals_with_categories')
+    .select('id, user_id, company_name, full_name, avatar_url')
+    .in('id', ids);
+
+  if (error) throw error;
+
+  const byId = new Map(
+    ((data ?? []) as PublicProfessionalRow[]).map((row) => [row.id, row]),
+  );
+
+  return projects.map((project) => {
+    const professional = byId.get(project.professional_id);
+    if (!professional) return project;
+
+    return {
+      ...project,
+      professional: {
+        id: professional.id,
+        company_name: professional.company_name,
+        user_id: professional.user_id,
+        users: {
+          full_name: professional.full_name,
+          avatar_url: professional.avatar_url,
+        },
+      },
+    };
+  });
+}
 
 export const projectsService = {
   /**
@@ -14,17 +56,14 @@ export const projectsService = {
       .select(`
         *,
         categories(name),
-        client:users!client_id(id, full_name, avatar_url),
-        professional:professional_profiles!professional_id(
-          id, company_name, user_id,
-          users(full_name, avatar_url)
-        )
+        client:users!client_id(id, full_name, avatar_url)
       `)
       .eq('id', id)
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as unknown as ProjectWithDetails;
+    const [project] = await attachPublicProfessionals([data as unknown as ProjectWithDetails]);
+    return project;
   },
 
   /**
@@ -55,16 +94,12 @@ export const projectsService = {
       .select(`
         *,
         categories(name),
-        client:users!client_id(id, full_name, avatar_url),
-        professional:professional_profiles!professional_id(
-          id, company_name, user_id,
-          users(full_name, avatar_url)
-        )
+        client:users!client_id(id, full_name, avatar_url)
       `)
       .or(filter)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data ?? []) as unknown as ProjectWithDetails[];
+    return attachPublicProfessionals((data ?? []) as unknown as ProjectWithDetails[]);
   },
 
   /**

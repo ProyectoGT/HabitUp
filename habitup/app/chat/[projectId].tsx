@@ -35,7 +35,7 @@ export default function ChatScreen() {
       hasScrolledRef.current = true;
       setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 200);
     }
-  }, [isLoading]);
+  }, [isLoading, messages.length]);
 
   // Scroll al final cuando llegan mensajes nuevos (después del inicial)
   useEffect(() => {

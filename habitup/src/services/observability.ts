@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react-native';
 import { supabase } from './supabase';
+import type { Json } from '@/types/database.types';
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
 
@@ -36,13 +37,13 @@ export async function captureError(error: Error, context?: Record<string, unknow
     });
   }
 
-  const { error: dbError } = await supabase.from('error_log').insert({
-    level: 'ERROR',
-    message: error.message,
-    stack: error.stack,
-    context: context ?? null,
-    user_id: userId,
-    source: 'app',
+  if (!userId) return;
+
+  const { error: dbError } = await supabase.rpc('record_app_error', {
+    p_level: 'ERROR',
+    p_message: error.message,
+    p_stack: error.stack ?? null,
+    p_context: (context ?? null) as Json | null,
   });
 
   if (dbError && __DEV__) {
@@ -62,11 +63,11 @@ export async function trackEvent(eventName: string, properties?: Record<string, 
     });
   }
 
-  const { error: dbError } = await supabase.from('event_log').insert({
-    event_name: eventName,
-    properties: properties ?? null,
-    user_id: userId,
-    source: 'app',
+  if (!userId) return;
+
+  const { error: dbError } = await supabase.rpc('record_app_event', {
+    p_event_name: eventName,
+    p_properties: (properties ?? null) as Json | null,
   });
 
   if (dbError && __DEV__) {

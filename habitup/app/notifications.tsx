@@ -36,7 +36,7 @@ export default function NotificationsScreen() {
   const onRefresh = useCallback(async () => {
     const data = await notificationsService.getAll();
     setNotifications(data);
-  }, []);
+  }, [setNotifications]);
 
   const onPressNotification = async (n: Notification) => {
     if (!n.is_read) {

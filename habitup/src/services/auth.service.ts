@@ -9,6 +9,12 @@ export interface SignUpParams {
   user_type: 'cliente' | 'professional';
 }
 
+export interface UpdateUserProfileParams {
+  full_name?: string;
+  phone?: string | null;
+  bio?: string | null;
+}
+
 export const authService = {
   async signUp({ email, password, full_name, user_type }: SignUpParams) {
     const { data, error } = await supabase.auth.signUp({
@@ -55,6 +61,21 @@ export const authService = {
       .single();
 
     if (profileError) throw profileError;
+    return data as User;
+  },
+
+  async updateCurrentUserProfile(params: UpdateUserProfileParams): Promise<User> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(params)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
     return data as User;
   },
 

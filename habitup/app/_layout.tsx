@@ -15,6 +15,7 @@ initSentry();
 // Stripe no soporta web — se carga solo en nativo
 const NativeStripeWrapper =
   Platform.OS !== 'web'
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     ? require('@stripe/stripe-react-native').StripeProvider
     : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
@@ -63,7 +64,7 @@ export default function RootLayout() {
         router.replace('/(professional)/onboarding');
       }
     }
-  }, [session, user, professionalProfile, isLoading]);
+  }, [session, user, professionalProfile, isLoading, router, segments]);
 
   const canUseStripe = Platform.OS !== 'web' && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
   const StripeWrapper = canUseStripe

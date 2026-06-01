@@ -44,7 +44,7 @@ export const BottomSheet = ({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible]);
+  }, [translateY, visible]);
 
   return (
     <Modal

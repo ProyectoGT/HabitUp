@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller, type Resolver, type Control, type FieldErrors } from 'react-hook-form';
@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { professionalsService } from '@/services/professionals.service';
 import { useAuthStore } from '@/stores/authStore';
 import { Screen, Input, Button, Card, StepIndicator } from '@/components/ui';
-import { Briefcase, Building2, MapPin, Map, MapPinHouse, Award, BriefcaseBusiness, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react-native';
+import { Briefcase, Building2, MapPin, Map, MapPinHouse, Award, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import type { Category } from '@/types/models';
 import { useColorScheme } from 'nativewind';
 

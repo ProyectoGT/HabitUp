@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import type { ProfessionalProfile } from '@/types/models';
 
 export type TrustSummary = {
   professional_id: string;

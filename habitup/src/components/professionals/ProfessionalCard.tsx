@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { formatRating } from '@/utils/formatters';
 import { Card, Avatar, Badge, VerifiedBadge } from '@/components/ui';
-import { ShieldCheck, Star, MapPin } from 'lucide-react-native';
+import { Star, MapPin } from 'lucide-react-native';
 
 export interface ProfessionalCardData {
   id: string;

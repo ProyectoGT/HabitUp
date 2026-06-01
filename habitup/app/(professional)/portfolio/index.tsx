@@ -27,7 +27,7 @@ export default function PortfolioScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

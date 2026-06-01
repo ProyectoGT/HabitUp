@@ -34,6 +34,7 @@ export interface TestData {
   leadB1Id: string
   quoteId: string
   projectId: string
+  conversationId: string
   messageId: string
 }
 
@@ -194,9 +195,19 @@ export async function setupTestData(admin: SupabaseClient, runId: number): Promi
     .single()
   if (pErr) throw new Error(`Failed to create project: ${pErr.message}`)
 
+  const { data: conversation, error: conversationErr } = await admin
+    .from('conversations')
+    .select('id')
+    .eq('project_id', project.id)
+    .single()
+  if (conversationErr || !conversation) {
+    throw new Error(`Failed to resolve project conversation: ${conversationErr?.message}`)
+  }
+
   const { data: msg, error: mErr } = await admin
     .from('messages')
     .insert({
+      conversation_id: conversation.id,
       project_id: project.id,
       sender_id: proId,
       recipient_id: clientAId,
@@ -221,6 +232,7 @@ export async function setupTestData(admin: SupabaseClient, runId: number): Promi
     leadB1Id: leadB1.id,
     quoteId: quote.id,
     projectId: project.id,
+    conversationId: conversation.id,
     messageId: msg.id,
   }
 }
@@ -241,7 +253,8 @@ export async function teardownTestData(admin: SupabaseClient, td: TestData) {
   const proIds = (proProfiles ?? []).map((p: { id: string }) => p.id)
 
   for (const del of [
-    admin.from('messages').delete().in('project_id', [td.projectId]),
+    admin.from('messages').delete().in('conversation_id', [td.conversationId]),
+    admin.from('conversations').delete().eq('id', td.conversationId),
     admin.from('projects').delete().eq('quote_id', td.quoteId),
     admin.from('projects').delete().eq('id', td.projectId),
     admin.from('quotes').delete().eq('id', td.quoteId),

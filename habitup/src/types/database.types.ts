@@ -368,10 +368,40 @@ export interface Database {
           payment_status?: string
         }
       }
+      conversations: {
+        Row: {
+          id: string
+          client_id: string
+          professional_id: string
+          lead_id: string | null
+          project_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          professional_id: string
+          lead_id?: string | null
+          project_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          professional_id?: string
+          lead_id?: string | null
+          project_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       messages: {
         Row: {
           id: string
-          project_id: string
+          project_id: string | null
+          conversation_id: string
           sender_id: string
           recipient_id: string
           message_type: string
@@ -384,7 +414,8 @@ export interface Database {
         }
         Insert: {
           id?: string
-          project_id: string
+          project_id?: string | null
+          conversation_id: string
           sender_id: string
           recipient_id: string
           message_type?: string
@@ -396,7 +427,8 @@ export interface Database {
         }
         Update: {
           id?: string
-          project_id?: string
+          project_id?: string | null
+          conversation_id?: string
           sender_id?: string
           recipient_id?: string
           message_type?: string
@@ -466,6 +498,7 @@ export interface Database {
           title: string | null
           message: string | null
           related_id: string | null
+          related_type: string | null
           is_read: boolean
           read_at: string | null
           created_at: string
@@ -477,6 +510,7 @@ export interface Database {
           title?: string | null
           message?: string | null
           related_id?: string | null
+          related_type?: string | null
           is_read?: boolean
           read_at?: string | null
         }
@@ -487,6 +521,7 @@ export interface Database {
           title?: string | null
           message?: string | null
           related_id?: string | null
+          related_type?: string | null
           is_read?: boolean
           read_at?: string | null
         }
@@ -538,10 +573,7 @@ export interface Database {
           id: string
           user_id: string
           full_name: string | null
-          email: string | null
-          phone: string | null
           avatar_url: string | null
-          bio: string | null
           company_name: string | null
           company_type: string | null
           description: string | null
@@ -552,17 +584,11 @@ export interface Database {
           response_time_hours: number | null
           location_city: string | null
           location_region: string | null
-          location_country: string | null
           service_radius_km: number | null
           is_active: boolean | null
           accepts_new_leads: boolean | null
-          website_url: string | null
-          instagram_url: string | null
-          facebook_url: string | null
-          linkedin_url: string | null
-          hourly_rate: number | null
-          created_at: string | null
-          updated_at: string | null
+          nif_cif_verified: boolean | null
+          documents_verified: boolean | null
           categories: Json
         }
       }
@@ -594,6 +620,70 @@ export interface Database {
           created_at: string
           updated_at: string
         }[]
+      }
+      get_or_create_project_conversation: {
+        Args: {
+          p_project_id: string
+        }
+        Returns: {
+          id: string
+          client_id: string
+          professional_id: string
+          lead_id: string | null
+          project_id: string | null
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      get_or_create_lead_conversation: {
+        Args: {
+          p_lead_id: string
+          p_professional_id: string
+        }
+        Returns: {
+          id: string
+          client_id: string
+          professional_id: string
+          lead_id: string | null
+          project_id: string | null
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      record_app_error: {
+        Args: {
+          p_message: string
+          p_level?: string
+          p_code?: string | null
+          p_stack?: string | null
+          p_context?: Json | null
+          p_correlation_id?: string | null
+        }
+        Returns: undefined
+      }
+      record_app_event: {
+        Args: {
+          p_event_name: string
+          p_properties?: Json | null
+          p_correlation_id?: string | null
+        }
+        Returns: undefined
+      }
+      current_user_is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      admin_kpi_overview: {
+        Args: Record<PropertyKey, never>
+        Returns: Json[]
+      }
+      admin_conversion_funnel: {
+        Args: Record<PropertyKey, never>
+        Returns: Json[]
+      }
+      admin_daily_trend: {
+        Args: Record<PropertyKey, never>
+        Returns: Json[]
       }
     }
     Enums: Record<string, never>

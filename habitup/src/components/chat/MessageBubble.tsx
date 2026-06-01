@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import type { Message } from '@/types/models';
-import { Check, CheckCheck, Clock } from 'lucide-react-native';
+import { CheckCheck, Clock } from 'lucide-react-native';
 
 interface Props {
   message: Message;

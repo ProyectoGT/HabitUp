@@ -17,7 +17,7 @@ const storage =
         },
       }
     : (() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const SecureStore = require('expo-secure-store');
         return {
           getItem: (key: string) => SecureStore.getItemAsync(key),

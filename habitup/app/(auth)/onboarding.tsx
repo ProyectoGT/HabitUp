@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Dimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen, Button } from '@/components/ui';
 import { Search, Briefcase, MessageSquare, ChevronRight } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-
-const { width } = Dimensions.get('window');
 
 const ONBOARDING_STEPS = [
   {
@@ -27,8 +24,6 @@ const ONBOARDING_STEPS = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const [step, setStep] = useState(0);
 
   const handleNext = () => {

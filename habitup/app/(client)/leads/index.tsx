@@ -55,7 +55,7 @@ export default function ClientLeadsScreen() {
 
   useEffect(() => {
     loadLeads().finally(() => setIsLoading(false));
-  }, []);
+  }, [loadLeads]);
 
   const onRefresh = async () => {
     setRefreshing(true);

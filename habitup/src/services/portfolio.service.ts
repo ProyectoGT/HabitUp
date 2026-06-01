@@ -103,9 +103,7 @@ export const portfolioService = {
         const parts = url.split('/portfolio-images/');
         return parts[1] ?? url;
       });
-      if (paths.length > 0) {
-        await supabase.storage.from('portfolio-images').remove(paths);
-      }
+      await Promise.all(paths.map((path) => storageService.remove('portfolio-images', path)));
     }
 
     const { error } = await supabase

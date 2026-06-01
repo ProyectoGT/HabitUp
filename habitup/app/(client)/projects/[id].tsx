@@ -14,7 +14,7 @@ import { paymentsService } from '@/services/payments.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PROJECT_STATUS, PAYMENT_STATUS } from '@/utils/constants';
 import type { Review, ProjectWithDetails } from '@/types/models';
-import { Screen, Card, Badge, Button, Input, LoadingState, NotFoundState, ErrorState } from '@/components/ui';
+import { Screen, Card, Badge, Button, Input, LoadingState, NotFoundState } from '@/components/ui';
 import { ArrowLeft, MessageCircle, Star, X, CreditCard, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -74,7 +74,7 @@ export default function ClientProjectDetailScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

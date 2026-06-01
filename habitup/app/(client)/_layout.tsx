@@ -1,31 +1,12 @@
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { useNotificationStore } from '@/stores/notificationStore';
-import { Home, Search, ClipboardList, Briefcase, User, Bell } from 'lucide-react-native';
+import { Home, Search, ClipboardList, Briefcase, User } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 function TabIcon({ Icon, focused, color }: { Icon: any; focused: boolean; color: string }) {
   return (
     <View className="items-center justify-center mt-1">
       <Icon color={color} size={24} strokeWidth={focused ? 2.5 : 2} opacity={focused ? 1 : 0.6} />
-    </View>
-  );
-}
-
-function BellTabIcon({ focused, color }: { focused: boolean; color: string }) {
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
-  return (
-    <View className="items-center justify-center mt-1">
-      <View className="relative">
-        <Bell color={color} size={24} strokeWidth={focused ? 2.5 : 2} opacity={focused ? 1 : 0.6} />
-        {unreadCount > 0 && (
-          <View className="absolute -top-1 -right-2 bg-error rounded-full min-w-[16px] h-4 items-center justify-center px-1 border-2 border-surface">
-            <Text className="text-white text-[9px] font-bold leading-none">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Text>
-          </View>
-        )}
-      </View>
     </View>
   );
 }
@@ -97,4 +78,3 @@ export default function ClientLayout() {
     </Tabs>
   );
 }
-

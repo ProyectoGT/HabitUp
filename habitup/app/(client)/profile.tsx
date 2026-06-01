@@ -7,12 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
-import { supabase } from '@/services/supabase';
 import { Screen, Card, Input, Button, Avatar, LoadingState, ErrorState } from '@/components/ui';
 import {
   User, Phone, AlignLeft, Mail, LogOut,
   ChevronRight, Bell, CreditCard, Shield,
-  HelpCircle, Moon, Settings,
+  HelpCircle, Settings,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -73,11 +72,7 @@ export default function ClientProfileScreen() {
 
   const onSave = async (data: FormData) => {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update(data)
-        .eq('id', user!.id);
-      if (error) throw error;
+      await authService.updateCurrentUserProfile(data);
       Alert.alert('Guardado', 'Perfil actualizado correctamente');
     } catch (e) {
       setError('root', { message: e instanceof Error ? e.message : 'Error al guardar' });

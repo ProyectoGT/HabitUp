@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,6 @@ import { professionalsService } from '@/services/professionals.service';
 import type { Category } from '@/types/models';
 import { Screen, Input, Button, Card } from '@/components/ui';
 import { ArrowLeft, Tag, FileText, AlignLeft, MapPin, CircleDollarSign, AlertCircle, Clock, Zap } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
   category_id: z.string().min(1, 'Selecciona una categoría'),
@@ -32,11 +31,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function CreateLeadScreen() {
   const router = useRouter();
-  const { professionalId } = useLocalSearchParams<{ professionalId?: string }>();
   const [categories, setCategories] = useState<Category[]>([]);
-  
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     professionalsService.getCategories().then(setCategories);

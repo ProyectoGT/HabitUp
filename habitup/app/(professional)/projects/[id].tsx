@@ -8,7 +8,7 @@ import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PROJECT_STATUS, PAYMENT_STATUS } from '@/utils/constants';
 import type { ProjectWithDetails, ProjectStatus } from '@/types/models';
-import { Screen, Card, Badge, Button, LoadingState, NotFoundState, ErrorState } from '@/components/ui';
+import { Screen, Card, Badge, Button, LoadingState, NotFoundState } from '@/components/ui';
 import { ArrowLeft, MessageCircle, PlayCircle, PauseCircle, CheckCircle2 } from 'lucide-react-native';
 
 type ProjectAction = {
@@ -62,7 +62,7 @@ export default function ProfessionalProjectDetailScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

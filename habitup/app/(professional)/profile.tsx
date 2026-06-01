@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,9 +9,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
 import { professionalsService } from '@/services/professionals.service';
 import { paymentsService } from '@/services/payments.service';
-import { supabase } from '@/services/supabase';
 import type { Category } from '@/types/models';
-import { Screen, Card, Button, Input, Badge, VerifiedBadge, LoadingState } from '@/components/ui';
+import { Screen, Card, Button, Input, VerifiedBadge, LoadingState } from '@/components/ui';
 import { Save, LogOut, CheckCircle2, XCircle, Clock, AlertTriangle, ShieldCheck, Link as LinkIcon, Camera, Globe, MapPin, Map, User, Phone, Briefcase, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -38,6 +37,7 @@ export default function ProfessionalProfileScreen() {
   const isDark = colorScheme === 'dark';
 
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [connectLoading, setConnectLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -46,9 +46,9 @@ export default function ProfessionalProfileScreen() {
         ? professionalsService.getMyCategories(professionalProfile.id).then((cats) => setSelectedCategoryIds(cats.map((c) => c.id)))
         : Promise.resolve(),
     ]).finally(() => setLoadingProfile(false));
-  }, []);
+  }, [professionalProfile]);
 
-  const { control, handleSubmit, formState: { errors, isSubmitting, isDirty }, setError } =
+  const { control, handleSubmit, formState: { errors, isSubmitting }, setError } =
     useForm<FormData>({
       resolver: zodResolver(schema) as Resolver<FormData>,
       defaultValues: {
@@ -75,7 +75,7 @@ export default function ProfessionalProfileScreen() {
     try {
       const { full_name, phone, ...profileData } = data;
 
-      await supabase.from('users').update({ full_name, phone }).eq('id', user!.id);
+      await authService.updateCurrentUserProfile({ full_name, phone });
 
       const updated = await professionalsService.updateProfile(profileData);
       setProfessionalProfile(updated);
@@ -90,34 +90,24 @@ export default function ProfessionalProfileScreen() {
     }
   };
 
-  const [connectLoading, setConnectLoading] = useState(false);
-
   const waitForStripeStatus = (profileId: string): Promise<void> => {
     return new Promise((resolve) => {
-      const channel = supabase
-        .channel('stripe-status')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'professional_profiles',
-            filter: `id=eq.${profileId}`,
-          },
-          (payload) => {
-            const newStatus = payload.new as { stripe_account_status?: string };
-            if (newStatus.stripe_account_status && newStatus.stripe_account_status !== 'not_created') {
-              supabase.removeChannel(channel);
-              resolve();
-            }
-          },
-        )
-        .subscribe();
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        unsubscribe();
+        resolve();
+      };
+      const unsubscribe = professionalsService.subscribeToStripeStatus(profileId, (newStatus) => {
+        if (newStatus.stripe_account_status && newStatus.stripe_account_status !== 'not_created') {
+          finish();
+        }
+      });
 
       // Fallback: resolver después de 30s aunque el webhook no llegue
       setTimeout(() => {
-        supabase.removeChannel(channel);
-        resolve();
+        finish();
       }, 30000);
     });
   };

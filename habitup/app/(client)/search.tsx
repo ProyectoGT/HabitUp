@@ -26,7 +26,7 @@ export default function SearchScreen() {
   useEffect(() => {
     professionalsService.getCategories().then(setCategories);
     search({});
-  }, []);
+  }, [search]);
 
   const onSearch = useCallback(() => {
     search({

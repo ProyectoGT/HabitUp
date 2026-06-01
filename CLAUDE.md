@@ -1,159 +1,132 @@
-# HabitUp — Contexto del Proyecto para Claude Code
+# HabitUp - Contexto Canonico Para Agentes
 
-## ¿Qué es HabitUp?
-HabitUp es un marketplace móvil (iOS + Android) que conecta a **profesionales del sector de reformas y rehabilitación de viviendas** con **clientes particulares** que necesitan contratar esos servicios.
+Este archivo es la fuente canonica para trabajar en HabitUp. Si contradice prompts antiguos o documentacion historica, manda este archivo junto con las migraciones reales.
 
-Funciona de forma similar a Habitissimo o Cronoshare pero con un modelo propio:
-- Los profesionales crean un perfil detallado con su experiencia, portfolio de trabajos, especialidades, redes sociales y página web.
-- Los clientes buscan a profesionales o empresas para pedir presupuesto (leads) describiendo el trabajo que necesitan.
-- Los profesionales responden con presupuestos (quotes).
-- El cliente acepta un presupuesto → se crea un proyecto → el cliente paga a través de la plataforma.
-- **La plataforma cobra una comisión del 10% sobre cada pago completado.**
-- Tras completar el proyecto, el cliente puede dejar una reseña verificada.
+## Producto
 
----
+HabitUp es un marketplace movil para reformas y rehabilitacion de viviendas.
 
-## Stack Tecnológico
+Core loop:
 
-| Capa | Tecnología |
-|------|-----------|
-| App móvil | React Native + Expo (SDK 51+) |
-| Lenguaje | TypeScript estricto (sin `any`) |
-| Backend / BD | Supabase (PostgreSQL + Auth + Storage + Realtime) |
-| Estado global | Zustand |
-| Navegación | Expo Router v3 (file-based) |
+1. Cliente se registra y crea un lead.
+2. Profesionales activos ven leads relevantes.
+3. Profesional envia quote.
+4. Cliente acepta quote mediante `accept_quote`.
+5. Se crea proyecto.
+6. Cliente paga via Stripe Connect y Edge Functions.
+7. Cliente y profesional chatean por conversacion.
+8. Se completa el proyecto.
+9. Cliente deja review verificada.
+
+Modelo de negocio: 10% de comision sobre pagos completados.
+
+## Stack Cerrado
+
+| Capa | Tecnologia |
+| --- | --- |
+| App movil | React Native + Expo SDK 54 |
+| Router | Expo Router |
+| Lenguaje | TypeScript estricto |
+| Estilos | NativeWind v4 |
+| Backend | Supabase Auth, PostgreSQL, RLS, Storage, Realtime |
+| Estado | Zustand |
 | Formularios | React Hook Form + Zod |
-| Estilos | NativeWind (Tailwind para RN) |
-| Pagos | Stripe Connect (via Supabase Edge Functions) |
-| Push notifications | Expo Notifications + OneSignal |
-| Imágenes | Expo Image + Supabase Storage |
-| Tests | Jest + React Native Testing Library |
-| CI/CD | EAS Build (Expo Application Services) |
+| Pagos | Stripe Connect via Supabase Edge Functions |
+| Push | Expo Notifications + Supabase |
+| Admin | Vite + React + Supabase |
 
----
+No usar React Navigation como router principal. No usar Firebase Auth. No usar OneSignal como decision nueva. No llamar Stripe desde la app.
 
-## Estructura de Carpetas
+## Reglas De Arquitectura
 
-```
-habitup/
-├── app/                        # Rutas y pantallas (Expo Router file-based)
-│   ├── (auth)/                 # login, register, forgot-password
-│   ├── (client)/               # home, search, leads/, projects/, profile
-│   ├── (professional)/         # home, leads/, projects/, portfolio/, profile
-│   ├── chat/[projectId].tsx
-│   └── _layout.tsx
-├── src/
-│   ├── components/
-│   │   ├── ui/                 # Button, Input, Card, Badge, Avatar, RatingStars, etc.
-│   │   ├── professionals/
-│   │   ├── leads/
-│   │   └── chat/
-│   ├── hooks/                  # useAuth, useLeads, useQuotes, useProjects, etc.
-│   ├── stores/                 # authStore, notificationStore
-│   ├── services/               # TODA llamada a Supabase va aquí
-│   ├── types/                  # database.types.ts (auto-generado), models.ts
-│   ├── utils/                  # colors.ts, validators.ts, formatters.ts, constants.ts
-│   └── config/                 # env.ts
-├── supabase/
-│   ├── migrations/             # 20 migraciones SQL versionadas
-│   └── functions/              # Edge Functions Deno
-│       ├── create-payment-intent/
-│       ├── stripe-webhook/
-│       ├── create-connect-account/
-│       └── send-push-notification/
-├── assets/
-├── .env.local                  # NO commitear
-└── app.json
-```
+- Toda llamada a Supabase desde la app vive en `habitup/src/services/`.
+- Pantallas y hooks no importan `supabase` directamente.
+- Storage se accede mediante `storage.service.ts`.
+- Los pagos pasan por Edge Functions.
+- Observabilidad de app usa RPCs seguras (`record_app_error`, `record_app_event`).
+- Analytics admin se leen mediante RPCs admin, no vistas directas.
+- RLS esta activo: si una query falla, revisar policies antes de filtrar de forma redundante.
+- Usar NativeWind con `className`; evitar estilos inline y `StyleSheet.create` en UI nueva.
+- Usar async/await y manejar siempre `{ data, error }`.
 
----
+## Estado De Datos
 
-## Base de Datos (Supabase / PostgreSQL)
+Migraciones reales: `habitup/supabase/migrations/20250101000000_*.sql` a `20250101000020_*.sql`.
 
-| Tabla | Descripción |
-|-------|-------------|
-| `users` | Mirror de auth.users. user_type: 'cliente', 'professional', 'admin' |
-| `professional_profiles` | Perfil detallado del profesional (1:1 con users) |
-| `categories` | Especialidades: Fontanería, Electricidad, Carpintería... |
-| `professional_categories` | Qué categorías tiene cada profesional (N:M) |
-| `portfolio_items` | Fotos y descripción de trabajos anteriores |
-| `leads` | Solicitudes de presupuesto publicadas por clientes |
-| `quotes` | Presupuestos enviados por profesionales |
-| `projects` | Contrato creado al aceptar un quote |
-| `payments` | Transacciones Stripe. Incluye stripe_payment_intent_id |
-| `commissions` | Comisiones del 10% registradas automáticamente |
-| `reviews` | Reseñas verificadas (solo tras proyecto completado) |
-| `messages` | Chat entre cliente y profesional |
-| `conversations` | Agrupación de mensajes (lead o proyecto) |
-| `verification_documents` | Documentos NIF/CIF del profesional |
-| `favorites` | Profesionales guardados por un cliente |
-| `notifications` | Notificaciones in-app |
+Tablas clave:
 
-**Reglas clave:**
-- `users.id` = `auth.users.id` (creado por trigger `on_auth_user_created`)
-- `platform_commission_amount` y `professional_receives` en `projects` se calculan automáticamente
-- `avg_rating` y `total_reviews` en `professional_profiles` se actualizan via trigger al insertar review
-- Solo se puede crear una review por proyecto, y el proyecto debe estar `completado`
-- **RLS activo en TODAS las tablas** — no añadir filtros `.eq('user_id', uid)` manualmente
+- `users`: mirror de `auth.users`.
+- `professional_profiles`: datos completos del profesional; SELECT reservado a propietario/admin.
+- `professionals_with_categories`: vista publica segura para busqueda/perfil publico.
+- `leads`, `quotes`, `projects`: loop comercial.
+- `conversations`: agregado de chat antes o despues de proyecto.
+- `messages`: mensajes por `conversation_id`; `project_id` queda opcional por compatibilidad.
+- `payments`, `commissions`: pagos y comisiones.
+- `reviews`: reviews verificadas, una por proyecto.
+- `verification_documents`: metadatos de documentos KYC.
+- `notifications`: notificaciones in-app con `related_type`.
 
----
+Reglas importantes:
 
-## Flujo Principal
+- No escribir columnas generated de `projects`: `platform_commission_amount`, `professional_receives`.
+- `avg_rating` y `total_reviews` se actualizan por trigger.
+- Solo una review por proyecto y solo con proyecto completado.
+- Las comisiones se registran por trigger cuando el pago queda completado.
 
-```
-CLIENTE crea LEAD
-  → PROFESIONALES ven el lead → envían QUOTE
-  → CLIENTE acepta QUOTE (RPC accept_quote())
-  → Se crea PROJECT automáticamente
-  → CLIENTE paga (Stripe via Edge Function create-payment-intent)
-  → Webhook Stripe actualiza PAYMENT → trigger actualiza PROJECT.payment_status
-  → PROFESIONAL marca trabajo finalizado (status: pendiente_finalizacion)
-  → CLIENTE confirma (status: completado)
-  → CLIENTE deja REVIEW → trigger actualiza avg_rating
-```
+## Storage
 
----
+Buckets reales:
 
-## Convenciones de Código
+- `avatars` publico.
+- `lead-images` publico.
+- `portfolio-images` publico.
+- `verification-documents` privado.
 
-1. **TypeScript estricto** — sin `any`. Usa siempre tipos de `database.types.ts` y `models.ts`.
-2. **Toda llamada a Supabase va en `src/services/`** — componentes y hooks nunca importan `supabase` directamente.
-3. **Si creas un componente**, ponlo en la carpeta correcta y expórtalo desde el `index.ts` de esa carpeta.
-4. **RLS está activo** — no añadas filtros de usuario manualmente a menos que sea imprescindible.
-5. **Para chat y notificaciones**, usa Supabase Realtime (`.channel().on()`).
-6. **Los pagos siempre pasan por Edge Functions** — nunca llames a Stripe directamente desde la app.
-7. **Estilos con NativeWind** (clases `className`) o StyleSheet — nunca estilos inline en JSX.
-8. **No hardcodees strings mágicos** — usa constantes de `src/utils/constants.ts`.
-9. **Maneja siempre el error** de Supabase — nunca lo ignores.
-10. **No commitees `.env.local`** — está en `.gitignore`.
+Convencion:
 
----
+- Documentos de verificacion siempre bajo `{auth.uid()}/...`.
+- Portfolio bajo `{portfolio_item_id}/...`.
+- Leads bajo `{lead_id}/...`.
 
-## Variables de Entorno
+## Chat
+
+La fuente de verdad es `conversations`.
+
+- Chat pre-acuerdo: `lead_id` + `professional_id`.
+- Chat de proyecto: `project_id`.
+- `messagesService` trabaja por conversacion y mantiene wrappers de compatibilidad por proyecto.
+- Realtime se suscribe a `messages.conversation_id`.
+
+## Admin
+
+El panel `admin/` usa Supabase con usuario admin. Las metricas se leen por:
+
+- `admin_kpi_overview`
+- `admin_conversion_funnel`
+- `admin_daily_trend`
+
+No consultar directamente `analytics.*` desde cliente.
+
+## Verificacion
+
+App:
 
 ```bash
-# habitup/.env.local
-EXPO_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1...
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxx
-EXPO_PUBLIC_ONESIGNAL_APP_ID=xxxxx
+cd habitup
+npm run typecheck
+npm run lint
+npm run supabase:test:rls
 ```
 
----
+Admin:
 
-## RPCs y Edge Functions
+```bash
+cd admin
+npm run typecheck
+```
 
-- `accept_quote(quote_id)` — RPC transaccional para aceptar un presupuesto y crear proyecto
-- `increment_lead_views(lead_id)` — incrementa views_count sin race condition
-- `create-payment-intent` — Edge Function que crea PaymentIntent de Stripe Connect
-- `stripe-webhook` — Edge Function que procesa eventos de Stripe
-- `create-connect-account` — Edge Function para onboarding de profesionales en Stripe
-- `send-push-notification` — Edge Function para enviar push via OneSignal
+`admin/` no tiene script `lint` en este momento.
 
----
+## Archivos Historicos
 
-## Modelo de Negocio
-
-- **Comisión:** 10% sobre cada pago completado
-- **Stripe Connect:** el cliente paga el total, Stripe divide (90% profesional, 10% plataforma)
-- **Futuro:** leads destacados, suscripción Pro, perfil verificado Premium
+`HABITUP_CLAUDE_CODE_PROMPT.md` queda como archivo historico. No usarlo como plan activo sin contrastarlo con `CLAUDE.md`, `README.md` y las migraciones actuales.

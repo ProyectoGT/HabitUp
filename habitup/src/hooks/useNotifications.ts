@@ -24,30 +24,31 @@ if (isNative) {
 
 export function useNotifications() {
   const user = useAuthStore((s) => s.user);
+  const userId = user?.id;
   const { setNotifications, addNotification, unreadCount } = useNotificationStore();
   const router = useRouter();
   const responseListenerRef = useRef<ExpoNotifications.EventSubscription | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof notificationsService.subscribeToNew> | null>(null);
 
   useEffect(() => {
-    if (!user || !isNative) return;
+    if (!userId || !isNative) return;
     registerForPushNotifications();
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     notificationsService.getAll().then(setNotifications).catch(() => null);
 
     realtimeChannelRef.current = notificationsService.subscribeToNew(
-      user.id,
+      userId,
       (n: Notification) => addNotification(n),
     );
 
     return () => {
       realtimeChannelRef.current?.unsubscribe();
     };
-  }, [user?.id]);
+  }, [addNotification, setNotifications, userId]);
 
   useEffect(() => {
     if (!isNative) return;
@@ -68,7 +69,7 @@ export function useNotifications() {
     return () => {
       responseListenerRef.current?.remove();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!isNative) return;

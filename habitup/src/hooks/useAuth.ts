@@ -65,7 +65,7 @@ export function useAuth() {
       isMounted = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [reset, setLoading, setProfessionalProfile, setSession, setUser]);
 
   return { session, user, professionalProfile, isLoading };
 }

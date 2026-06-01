@@ -72,6 +72,26 @@ export const leadsService = {
     return (data ?? []) as Lead[];
   },
 
+  subscribeToAvailableLeads(onChange: () => void): () => void {
+    const channel = supabase
+      .channel('available-leads')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads',
+          filter: `status=eq.${LEAD_STATUS.ACTIVE}`,
+        },
+        onChange,
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  },
+
   async create(params: CreateLeadParams): Promise<Lead> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No autenticado');

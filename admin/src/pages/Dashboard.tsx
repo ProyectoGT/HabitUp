@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database';
 import {
-  Users, Briefcase, FileText, CreditCard, ShieldCheck, Star,
+  Users, Briefcase, FileText, Star,
   TrendingUp, DollarSign, Percent, Activity
 } from 'lucide-react';
 
@@ -25,32 +26,35 @@ interface DailyRow {
   avg_rating: number | null;
 }
 
+type FunnelRow = { etapa: string; cantidad: number; conversion_pct: number };
+type KpiOverviewRow = Database['public']['Functions']['admin_kpi_overview']['Returns'][number];
+
 export default function Dashboard() {
   const [kpis, setKpis] = useState<Kpi[]>([]);
-  const [funnel, setFunnel] = useState<{ etapa: string; cantidad: number; conversion_pct: number }[]>([]);
+  const [funnel, setFunnel] = useState<FunnelRow[]>([]);
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const { data: kpiData } = await supabase
-        .from('kpi_overview' as any)
-        .select('*')
-        .limit(1)
-        .single();
+      const [
+        { data: kpiData, error: kpiError },
+        { data: funnelData, error: funnelError },
+        { data: dailyData, error: dailyError },
+      ] = await Promise.all([
+        supabase.rpc('admin_kpi_overview'),
+        supabase.rpc('admin_conversion_funnel'),
+        supabase.rpc('admin_daily_trend'),
+      ]);
 
-      const { data: funnelData } = await supabase
-        .from('conversion_funnel' as any)
-        .select('*');
+      if (kpiError || funnelError || dailyError) {
+        console.error('Error loading dashboard analytics', kpiError ?? funnelError ?? dailyError);
+        setLoading(false);
+        return;
+      }
 
-      const { data: dailyData } = await supabase
-        .from('daily_trend' as any)
-        .select('*')
-        .order('date' as any, { ascending: false })
-        .limit(14);
-
-      if (kpiData) {
-        const d = kpiData as any;
+      const d = ((kpiData ?? []) as KpiOverviewRow[])[0];
+      if (d) {
         setKpis([
           {
             label: 'Leads totales',
@@ -110,8 +114,8 @@ export default function Dashboard() {
         ]);
       }
 
-      if (funnelData) setFunnel(funnelData as any);
-      if (dailyData) setDaily(dailyData as any);
+      setFunnel((funnelData ?? []) as FunnelRow[]);
+      setDaily((dailyData ?? []) as DailyRow[]);
       setLoading(false);
     }
 

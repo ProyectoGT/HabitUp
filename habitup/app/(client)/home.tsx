@@ -41,9 +41,9 @@ export default function ClientHomeScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState(STATS);
-  const [recentActivity, setRecentActivity] = useState(RECENT_ACTIVITY);
-  const [suggested, setSuggested] = useState(SUGGESTED);
+  const [stats] = useState(STATS);
+  const [recentActivity] = useState(RECENT_ACTIVITY);
+  const [suggested] = useState(SUGGESTED);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -55,7 +55,7 @@ export default function ClientHomeScreen() {
   const handleRetry = () => {
     setIsLoading(true);
     setError(null);
-    const timer = setTimeout(() => {
+    setTimeout(() => {
       setIsLoading(false);
     }, 500);
   };

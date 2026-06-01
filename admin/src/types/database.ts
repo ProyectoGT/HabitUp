@@ -363,6 +363,63 @@ export interface Database {
         };
         Returns: string;
       };
+      admin_kpi_overview: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_leads: number;
+          leads_7d: number;
+          leads_30d: number;
+          leads_activos: number;
+          total_quotes: number;
+          quotes_aceptados: number;
+          quotes_rechazados: number;
+          quotes_pendientes: number;
+          quote_acceptance_rate_pct: number;
+          total_projects: number;
+          projects_completados: number;
+          projects_en_curso: number;
+          project_completion_rate_pct: number;
+          gmv: number;
+          platform_commission: number;
+          professional_earnings: number;
+          payments_fallidos: number;
+          payment_failure_rate_pct: number;
+          total_reviews: number;
+          avg_rating_global: number;
+          total_professionals: number;
+          total_clients: number;
+          professionals_activos: number;
+          professional_activation_rate_pct: number;
+          clients_activos_30d: number;
+          lead_to_project_rate_pct: number;
+          lead_to_quote_rate_pct: number;
+          avg_hours_to_first_quote: number;
+          avg_quotes_per_lead: number;
+        }[];
+      };
+      admin_conversion_funnel: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          etapa: string;
+          cantidad: number;
+          conversion_pct: number;
+          perdidos: number;
+        }[];
+      };
+      admin_daily_trend: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          date: string;
+          leads_created: number;
+          quotes_sent: number;
+          quotes_accepted: number;
+          projects_created: number;
+          projects_completed: number;
+          gmv: number;
+          reviews_created: number;
+          avg_rating: number | null;
+        }[];
+      };
     };
   };
 }
