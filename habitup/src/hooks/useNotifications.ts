@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as ExpoNotifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -9,6 +10,8 @@ import type { Notification } from '@/types/models';
 
 // Notificaciones solo disponibles en nativo
 const isNative = Platform.OS !== 'web';
+// Push remotas eliminadas de Expo Go en SDK 53 — requieren dev build
+const canUsePushNotifications = isNative && Constants.appOwnership !== 'expo';
 
 if (isNative) {
   ExpoNotifications.setNotificationHandler({
@@ -31,7 +34,7 @@ export function useNotifications() {
   const realtimeChannelRef = useRef<ReturnType<typeof notificationsService.subscribeToNew> | null>(null);
 
   useEffect(() => {
-    if (!userId || !isNative) return;
+    if (!userId || !canUsePushNotifications) return;
     registerForPushNotifications();
   }, [userId]);
 
@@ -51,7 +54,7 @@ export function useNotifications() {
   }, [addNotification, setNotifications, userId]);
 
   useEffect(() => {
-    if (!isNative) return;
+    if (!canUsePushNotifications) return;
 
     responseListenerRef.current = ExpoNotifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -72,7 +75,7 @@ export function useNotifications() {
   }, [router]);
 
   useEffect(() => {
-    if (!isNative) return;
+    if (!canUsePushNotifications) return;
     ExpoNotifications.setBadgeCountAsync(unreadCount).catch(() => null);
   }, [unreadCount]);
 
@@ -80,7 +83,7 @@ export function useNotifications() {
 }
 
 async function registerForPushNotifications() {
-  if (!isNative) return;
+  if (!canUsePushNotifications) return;
 
   const { status: existing } = await ExpoNotifications.getPermissionsAsync();
   let finalStatus = existing;

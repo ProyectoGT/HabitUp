@@ -4,7 +4,7 @@
 
 -- Conversations support chat before and after a project exists.
 CREATE TABLE IF NOT EXISTS conversations (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   professional_id UUID NOT NULL REFERENCES professional_profiles(id) ON DELETE CASCADE,
   lead_id         UUID REFERENCES leads(id) ON DELETE CASCADE,
@@ -114,6 +114,11 @@ SET conversation_id = c.id
 FROM conversations c
 WHERE m.conversation_id IS NULL
   AND m.project_id = c.project_id;
+
+-- Delete orphan messages that have no project_id and no conversation_id
+-- (cannot be linked — would block the NOT NULL constraint below)
+DELETE FROM messages
+WHERE conversation_id IS NULL;
 
 ALTER TABLE messages
   ALTER COLUMN conversation_id SET NOT NULL,
@@ -380,7 +385,7 @@ SELECT
         'id', c.id,
         'name', c.name,
         'slug', c.slug,
-        'icon', c.icon
+        'icon', c.icon_url
       )
     ) FILTER (WHERE c.id IS NOT NULL),
     '[]'::JSONB

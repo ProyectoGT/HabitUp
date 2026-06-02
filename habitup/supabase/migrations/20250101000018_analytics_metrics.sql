@@ -21,22 +21,22 @@
 --    en tablas en crecimiento.
 -- ═══════════════════════════════════════════════════
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_created_at ON leads(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_status ON leads(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_category_id ON leads(category_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_quotes_created_at ON quotes(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_quotes_status ON quotes(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_quotes_lead_id ON quotes(lead_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_created_at ON projects(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_status ON projects(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_category_id ON projects(category_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_client_id ON projects(client_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_created_at ON payments(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reviews_created_at ON reviews(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reviews_professional_id ON reviews(professional_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_created_at ON users(created_at);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_user_type ON users(user_type);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_leads_category_id ON leads(category_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at);
+CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
+CREATE INDEX IF NOT EXISTS idx_quotes_lead_id ON quotes(lead_id);
+CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_category_id ON projects(category_id);
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
+CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews(created_at);
+CREATE INDEX IF NOT EXISTS idx_reviews_professional_id ON reviews(professional_id);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_user_type ON users(user_type);
 
 -- ═══════════════════════════════════════════════════
 -- 1. SCHEMA: analytics

@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,12 +12,12 @@ import { initSentry } from '@/services/observability';
 
 initSentry();
 
-// Stripe no soporta web — se carga solo en nativo
-const NativeStripeWrapper =
-  Platform.OS !== 'web'
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ? require('@stripe/stripe-react-native').StripeProvider
-    : ({ children }: { children: React.ReactNode }) => <>{children}</>;
+// Stripe necesita el native module compilado (dev build) — no disponible en Expo Go
+const hasStripeNativeModule = Platform.OS !== 'web' && !!TurboModuleRegistry.get('StripeSdk');
+const NativeStripeWrapper = hasStripeNativeModule
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ? require('@stripe/stripe-react-native').StripeProvider
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
 export default function RootLayout() {
   const { session, user, professionalProfile, isLoading } = useAuth();
@@ -66,7 +66,7 @@ export default function RootLayout() {
     }
   }, [session, user, professionalProfile, isLoading, router, segments]);
 
-  const canUseStripe = Platform.OS !== 'web' && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
+  const canUseStripe = hasStripeNativeModule && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
   const StripeWrapper = canUseStripe
     ? NativeStripeWrapper
     : ({ children }: { children: React.ReactNode }) => <>{children}</>;

@@ -42,6 +42,17 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Ensure all columns exist when table was pre-created without full schema
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS client_id                UUID REFERENCES users(id);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS professional_id          UUID REFERENCES professional_profiles(id);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS gross_amount             NUMERIC(10,2);
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS platform_commission_pct  NUMERIC(5,2) NOT NULL DEFAULT 10;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS commission_amount        NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS professional_amount      NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_transfer_id       TEXT;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS paid_at                  TIMESTAMPTZ;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS error_message            TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id);
 CREATE INDEX IF NOT EXISTS idx_payments_stripe_payment_intent_id ON payments(stripe_payment_intent_id);
 
@@ -69,6 +80,11 @@ CREATE TABLE IF NOT EXISTS commissions (
                     CHECK (status IN ('pendiente', 'pagado', 'reembolsado')),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Ensure all columns exist when table was pre-created without full schema
+ALTER TABLE commissions ADD COLUMN IF NOT EXISTS payment_id      UUID REFERENCES payments(id);
+ALTER TABLE commissions ADD COLUMN IF NOT EXISTS professional_id UUID REFERENCES professional_profiles(id);
+ALTER TABLE commissions ADD COLUMN IF NOT EXISTS pct             NUMERIC(5,2) NOT NULL DEFAULT 10;
 
 CREATE INDEX IF NOT EXISTS idx_commissions_project_id ON commissions(project_id);
 CREATE INDEX IF NOT EXISTS idx_commissions_payment_id ON commissions(payment_id);

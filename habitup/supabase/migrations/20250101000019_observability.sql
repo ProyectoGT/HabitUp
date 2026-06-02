@@ -51,6 +51,7 @@ ALTER TABLE public.error_log ENABLE ROW LEVEL SECURITY;
 
 -- Default-deny: only service_role (bypasses RLS) can access.
 -- Authenticated/anonymous users see and write nothing.
+DROP POLICY IF EXISTS "error_log_admin_access" ON public.error_log;
 CREATE POLICY "error_log_admin_access"
   ON public.error_log
   FOR SELECT
@@ -93,6 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_event_log_correlation_id
 
 ALTER TABLE public.event_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "event_log_admin_access" ON public.event_log;
 CREATE POLICY "event_log_admin_access"
   ON public.event_log
   FOR SELECT
