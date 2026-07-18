@@ -37,10 +37,10 @@ export class ErrorBoundary extends Component<Props, State> {
           <AlertTriangle size={32} color="#EF4444" />
         </View>
         <Text className="text-lg font-semibold text-center mb-2">
-          Algo salio mal
+          No hemos podido mostrar esta pantalla
         </Text>
         <Text className="text-gray-500 text-center mb-6 leading-relaxed">
-          {this.state.error?.message ?? 'Ocurrio un error inesperado'}
+          Tus datos no se han perdido. Vuelve a intentarlo y, si continúa, abre de nuevo la aplicación.
         </Text>
         <Button label="Reintentar" onPress={this.handleRetry} />
       </View>

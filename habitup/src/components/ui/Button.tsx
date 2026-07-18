@@ -3,7 +3,7 @@ import { TouchableOpacity, Text, TouchableOpacityProps, ActivityIndicator } from
 
 export interface ButtonProps extends TouchableOpacityProps {
   label: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
@@ -31,6 +31,8 @@ export const Button = ({
         return 'bg-transparent border-2 border-primary';
       case 'ghost':
         return 'bg-transparent';
+      case 'destructive':
+        return 'bg-error';
       case 'primary':
       default:
         return 'bg-primary';
@@ -44,6 +46,8 @@ export const Button = ({
       case 'outline':
       case 'ghost':
         return 'text-primary';
+      case 'destructive':
+        return 'text-white';
       case 'primary':
       default:
         return 'text-white';
@@ -53,12 +57,12 @@ export const Button = ({
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
-        return 'py-2 px-4 rounded-xl';
+        return 'min-h-11 py-2 px-4 rounded-xl';
       case 'lg':
-        return 'py-4 px-8 rounded-2xl';
+        return 'min-h-14 py-3 px-6 rounded-xl';
       case 'md':
       default:
-        return 'py-3 px-6 rounded-2xl';
+        return 'min-h-12 py-3 px-5 rounded-xl';
     }
   };
 
@@ -67,13 +71,15 @@ export const Button = ({
   return (
     <TouchableOpacity
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: isLoading }}
       className={`flex-row items-center justify-center ${getVariantStyles()} ${getSizeStyles()} ${
         isDisabled ? 'opacity-50' : 'opacity-100'
       } ${className || ''}`}
       {...rest}
     >
       {isLoading ? (
-        <ActivityIndicator color={variant === 'primary' ? 'white' : '#6366F1'} className="mr-2" />
+        <ActivityIndicator color={variant === 'primary' || variant === 'destructive' ? 'white' : '#4F46E5'} className="mr-2" />
       ) : leftIcon ? (
         <>{leftIcon}</>
       ) : null}

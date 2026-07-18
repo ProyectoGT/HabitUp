@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
+import * as Linking from 'expo-linking';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
 import { professionalsService } from '@/services/professionals.service';
 import { USER_TYPES } from '@/utils/constants';
 
 export function useAuth() {
-  const { session, user, professionalProfile, isLoading, setSession, setUser, setProfessionalProfile, setLoading, reset } =
+  const { session, user, professionalProfile, isLoading, profileError, setSession, setUser, setProfessionalProfile, setLoading, setProfileError, reset } =
     useAuthStore();
 
   useEffect(() => {
@@ -29,8 +30,8 @@ export function useAuth() {
           const proProfile = await withTimeout(professionalsService.getMyProfile(), 5000);
           if (isMounted) setProfessionalProfile(proProfile);
         }
-      } catch {
-        if (isMounted) reset();
+      } catch (error) {
+        if (isMounted) setProfileError(error instanceof Error ? error.message : 'No se ha podido cargar el perfil');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -51,8 +52,8 @@ export function useAuth() {
           } else {
             setProfessionalProfile(null);
           }
-        } catch {
-          reset();
+        } catch (error) {
+          setProfileError(error instanceof Error ? error.message : 'No se ha podido cargar el perfil');
         } finally {
           setLoading(false);
         }
@@ -65,9 +66,25 @@ export function useAuth() {
       isMounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [reset, setLoading, setProfessionalProfile, setSession, setUser]);
+  }, [reset, setLoading, setProfessionalProfile, setProfileError, setSession, setUser]);
 
-  return { session, user, professionalProfile, isLoading };
+  useEffect(() => {
+    let active = true;
+    const completeLink = async (url: string | null) => {
+      if (!url || !url.startsWith('habitup://')) return;
+      try {
+        const nextSession = await authService.completeAuthLink(url);
+        if (active && nextSession) setSession(nextSession);
+      } catch (error) {
+        if (active) setProfileError(error instanceof Error ? error.message : 'El enlace no es válido o ha caducado');
+      }
+    };
+    void Linking.getInitialURL().then(completeLink);
+    const subscription = Linking.addEventListener('url', ({ url }) => { void completeLink(url); });
+    return () => { active = false; subscription.remove(); };
+  }, [setProfileError, setSession]);
+
+  return { session, user, professionalProfile, isLoading, profileError };
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

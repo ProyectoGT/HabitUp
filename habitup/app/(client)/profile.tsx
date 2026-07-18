@@ -92,6 +92,16 @@ export default function ClientProfileScreen() {
     ]);
   };
 
+  const onDeleteAccount = () => {
+    Alert.alert('Eliminar cuenta', 'Esta acción elimina de forma permanente tu cuenta y los datos asociados. No se puede deshacer.', [
+      { text: 'Conservar cuenta', style: 'cancel' },
+      { text: 'Eliminar definitivamente', style: 'destructive', onPress: async () => {
+        try { await authService.deleteAccount(); reset(); router.replace('/(auth)/login'); }
+        catch { Alert.alert('No se pudo eliminar', 'Comprueba tu conexión y vuelve a intentarlo.'); }
+      } },
+    ]);
+  };
+
   if (isLoading) {
     return (
       <Screen safeArea={false} className="flex-1">
@@ -279,6 +289,10 @@ export default function ClientProfileScreen() {
         >
           <LogOut size={20} color="#EF4444" />
           <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 15 }}>Cerrar sesión</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onDeleteAccount} activeOpacity={0.8} className="items-center py-4 mt-3">
+          <Text className="text-error font-semibold">Eliminar mi cuenta</Text>
         </TouchableOpacity>
 
         <Text className="text-center text-xs text-muted-text mt-6">HabitUp v1.0.0</Text>

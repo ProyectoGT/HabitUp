@@ -7,10 +7,12 @@ interface AuthState {
   user: User | null;
   professionalProfile: ProfessionalProfile | null;
   isLoading: boolean;
+  profileError: string | null;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
   setProfessionalProfile: (profile: ProfessionalProfile | null) => void;
   setLoading: (isLoading: boolean) => void;
+  setProfileError: (message: string | null) => void;
   reset: () => void;
 }
 
@@ -19,9 +21,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   professionalProfile: null,
   isLoading: true,
+  profileError: null,
   setSession: (session) => set({ session }),
   setUser: (user) => set({ user }),
   setProfessionalProfile: (professionalProfile) => set({ professionalProfile }),
   setLoading: (isLoading) => set({ isLoading }),
-  reset: () => set({ session: null, user: null, professionalProfile: null, isLoading: false }),
+  setProfileError: (profileError) => set({ profileError }),
+  reset: () => set({ session: null, user: null, professionalProfile: null, isLoading: false, profileError: null }),
 }));

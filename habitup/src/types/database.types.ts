@@ -21,6 +21,11 @@ export interface Database {
           email: string
           full_name: string
           phone: string | null
+          locality: string | null
+          postal_code: string | null
+          onboarding_completed_at: string | null
+          terms_accepted_at: string | null
+          marketing_consent: boolean
           avatar_url: string | null
           user_type: string
           bio: string | null
@@ -35,6 +40,11 @@ export interface Database {
           email: string
           full_name: string
           phone?: string | null
+          locality?: string | null
+          postal_code?: string | null
+          onboarding_completed_at?: string | null
+          terms_accepted_at?: string | null
+          marketing_consent?: boolean
           avatar_url?: string | null
           user_type?: string
           bio?: string | null
@@ -47,6 +57,11 @@ export interface Database {
           email?: string
           full_name?: string
           phone?: string | null
+          locality?: string | null
+          postal_code?: string | null
+          onboarding_completed_at?: string | null
+          terms_accepted_at?: string | null
+          marketing_consent?: boolean
           avatar_url?: string | null
           user_type?: string
           bio?: string | null
@@ -594,6 +609,10 @@ export interface Database {
       }
     }
     Functions: {
+      delete_my_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       accept_quote: {
         Args: {
           p_quote_id: string

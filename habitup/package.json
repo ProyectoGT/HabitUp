@@ -12,7 +12,8 @@
     "lint": "npx expo lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "echo \"Tests pendientes: instalar Jest/RNTL — ver QA_CHECKLIST.md\"",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
@@ -62,10 +63,14 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
+    "jest-expo": "~54.0.0",
     "prettier": "^3.5.0",
+    "react-test-renderer": "^19.1.0",
     "supabase": "^2.101.0",
     "typescript": "~5.9.2"
   },

@@ -25,18 +25,12 @@ export default function ClientLayout() {
         tabBarStyle: {
           backgroundColor: isDark ? '#1A1D29' : '#FFFFFF',
           borderTopColor: isDark ? '#2D3548' : '#E2E8F0',
-          paddingBottom: 8,
-          height: 65,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 10,
+          minHeight: 58,
+          elevation: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          marginTop: 2,
+          fontSize: 12,
+          fontWeight: '600',
         },
       }}
     >
@@ -75,6 +69,11 @@ export default function ClientLayout() {
           tabBarIcon: ({ focused, color }) => <TabIcon Icon={User} focused={focused} color={color} />,
         }}
       />
+      <Tabs.Screen name="leads/create" options={{ href: null }} />
+      <Tabs.Screen name="onboarding" options={{ href: null }} />
+      <Tabs.Screen name="leads/[id]" options={{ href: null }} />
+      <Tabs.Screen name="projects/[id]" options={{ href: null }} />
+      <Tabs.Screen name="professional/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
