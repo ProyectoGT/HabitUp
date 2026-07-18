@@ -18,9 +18,21 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function friendlySignUpError(e: unknown): string {
+  const message = e instanceof Error ? e.message : '';
+  if (message.includes('rate limit')) {
+    return 'Se ha superado el límite de envío de correos. Espera unos minutos y vuelve a intentarlo.';
+  }
+  if (message.includes('already registered')) {
+    return 'Ya existe una cuenta con este correo. Prueba a iniciar sesión.';
+  }
+  return message || 'Error al registrarse';
+}
+
 export default function RegisterScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [pendingConfirmation, setPendingConfirmation] = React.useState(false);
 
   const { control, handleSubmit, watch, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -31,12 +43,29 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      await authService.signUp(data);
+      const { session } = await authService.signUp(data);
+      // Con confirmación de email activada, signUp no devuelve sesión:
+      // la cuenta existe pero hay que confirmar el correo antes de entrar.
+      if (!session) setPendingConfirmation(true);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Error al registrarse';
-      setError('root', { message });
+      setError('root', { message: friendlySignUpError(e) });
     }
   };
+
+  if (pendingConfirmation) {
+    return (
+      <Screen safeArea>
+        <View className="flex-1 items-center justify-center px-8">
+          <CheckCircle2 color="#22C55E" size={56} />
+          <Text className="text-2xl font-extrabold text-text mt-6 mb-2 text-center">Cuenta creada</Text>
+          <Text className="text-muted-text text-base text-center mb-8">
+            Te hemos enviado un correo de confirmación. Confirma tu email y después inicia sesión.
+          </Text>
+          <Link href="/(auth)/login" className="text-primary font-bold text-lg">Ir a iniciar sesión</Link>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeArea>
