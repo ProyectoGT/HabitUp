@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, TouchableOpacityProps, ActivityIndicator } from 'react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export interface ButtonProps extends TouchableOpacityProps {
   label: string;
@@ -23,6 +24,7 @@ export const Button = ({
   disabled,
   ...rest
 }: ButtonProps) => {
+  const { colors } = useThemeColors();
   const getVariantStyles = () => {
     switch (variant) {
       case 'secondary':
@@ -47,22 +49,22 @@ export const Button = ({
       case 'ghost':
         return 'text-primary';
       case 'destructive':
-        return 'text-white';
+        return 'text-on-primary';
       case 'primary':
       default:
-        return 'text-white';
+        return 'text-on-primary';
     }
   };
 
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
-        return 'min-h-11 py-2 px-4 rounded-xl';
+        return 'min-h-11 py-2 px-4 rounded';
       case 'lg':
-        return 'min-h-14 py-3 px-6 rounded-xl';
+        return 'min-h-14 py-3 px-6 rounded';
       case 'md':
       default:
-        return 'min-h-12 py-3 px-5 rounded-xl';
+        return 'min-h-12 py-3 px-5 rounded';
     }
   };
 
@@ -79,7 +81,7 @@ export const Button = ({
       {...rest}
     >
       {isLoading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'destructive' ? 'white' : '#4F46E5'} className="mr-2" />
+        <ActivityIndicator color={variant === 'primary' || variant === 'destructive' ? colors.onPrimary : colors.primary} className="mr-2" />
       ) : leftIcon ? (
         <>{leftIcon}</>
       ) : null}

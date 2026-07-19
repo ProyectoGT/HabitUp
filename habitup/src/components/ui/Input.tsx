@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TextInput, Text, TextInputProps } from 'react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -12,6 +13,7 @@ export interface InputProps extends TextInputProps {
 export const Input = React.forwardRef<TextInput, InputProps>(
   ({ label, error, hint, leftIcon, rightIcon, className, style, multiline, ...rest }, ref) => {
     const message = error ?? hint;
+    const { colors } = useThemeColors();
     return (
       <View className="mb-5">
         {label && (
@@ -20,7 +22,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
           </Text>
         )}
         <View
-          className={`flex-row ${multiline ? 'items-start' : 'items-center'} bg-surface border rounded-xl px-4 min-h-12 ${
+          className={`flex-row ${multiline ? 'items-start' : 'items-center'} bg-surface border rounded px-4 min-h-12 ${
             error ? 'border-error' : 'border-border'
           } ${className || ''}`}
         >
@@ -28,7 +30,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
           <TextInput
             ref={ref}
             className={`flex-1 text-text text-base py-3 ${multiline ? 'min-h-28' : ''}`}
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.mutedText}
             style={style}
             multiline={multiline}
             accessibilityLabel={rest.accessibilityLabel ?? label}

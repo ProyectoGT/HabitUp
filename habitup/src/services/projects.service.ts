@@ -33,9 +33,10 @@ async function attachPublicProfessionals(
     return {
       ...project,
       professional: {
-        id: professional.id,
+        // La vista tipa id/user_id como nullable, pero nunca vienen nulos en filas reales.
+        id: professional.id ?? '',
         company_name: professional.company_name,
-        user_id: professional.user_id,
+        user_id: professional.user_id ?? '',
         users: {
           full_name: professional.full_name,
           avatar_url: professional.avatar_url,

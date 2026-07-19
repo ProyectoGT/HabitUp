@@ -2,32 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================================
+   HabitUp — Sistema visual "Plano y Obra"
+   ---------------------------------------------------------------------
+   Metáfora estructural, no decorativa: la app se siente como un plano
+   técnico que se va construyendo.
+
+   REGLA: ningún componente debe hardcodear un color hex. Si necesitas un
+   color que no está aquí, añádelo aquí primero.
+   ===================================================================== */
+
 @layer base {
   :root {
-    --background: #F8FAFC;
-    --surface: #FFFFFF;
-    --text: #1A1D29;
-    --muted-text: #64748B;
-    --primary: #4F46E5;
-    --primary-dark: #3730A3;
-    --success: #10B981;
-    --warning: #F59E0B;
-    --error: #EF4444;
-    --border: #E2E8F0;
-    --input-background: #FFFFFF;
+    --background:        #F4F1EC;
+    --surface:           #FFFFFF;
+    --surface-sunken:    #E5E0D8;
+
+    --text:              #1C1B19;
+    --muted-text:        #6B6862;
+
+    --primary:           #E8590C;
+    --primary-dark:      #C24708;
+    --primary-soft:      #FDEAE0;
+    --on-primary:        #FFFFFF;
+
+    --blueprint:         #2C5F7C;
+    --blueprint-soft:    #E3EDF2;
+
+    --phase-pending:     #B8B3AA;
+    --phase-progress:    #E8590C;
+    --phase-done:        #2F7A4F;
+
+    --success:           #2F7A4F;
+    --warning:           #C98A0E;
+    --error:             #C0392B;
+
+    --border:            #D9D3C9;
+    --border-strong:     #B8B3AA;
+    --input-background:  #FFFFFF;
+
+    --grid-line:         rgba(28, 27, 25, 0.04);
+
+    --seal-gold:         #B8862B;
+    --seal-silver:       #8A8578;
+    --seal-verified:     #2C5F7C;
+
+    --promoted-bg:       #FAF6EF;
+    --promoted-border:   #E0D4BC;
   }
-  
+
   .dark {
-    --background: #0F1117;
-    --surface: #1A1D29;
-    --text: #F1F5F9;
-    --muted-text: #94A3B8;
-    --primary: #818CF8;
-    --primary-dark: #A5B4FC;
-    --success: #10B981;
-    --warning: #F59E0B;
-    --error: #EF4444;
-    --border: #2D3548;
-    --input-background: #1E2433;
+    --background:        #16151A;
+    --surface:           #1F1E24;
+    --surface-sunken:    #131217;
+
+    --text:              #EDEAE4;
+    --muted-text:        #9A958C;
+
+    --primary:           #FF7A33;
+    --primary-dark:      #E8590C;
+    --primary-soft:      #3A2318;
+    --on-primary:        #1C1B19;
+
+    --blueprint:         #6FA8C7;
+    --blueprint-soft:    #1B2C36;
+
+    --phase-pending:     #4A4740;
+    --phase-progress:    #FF7A33;
+    --phase-done:        #4CA372;
+
+    --success:           #4CA372;
+    --warning:           #E0A526;
+    --error:             #E15A4A;
+
+    --border:            #33313A;
+    --border-strong:     #4A4740;
+    --input-background:  #26252C;
+
+    --grid-line:         rgba(237, 234, 228, 0.05);
+
+    --seal-gold:         #D4A344;
+    --seal-silver:       #A8A296;
+    --seal-verified:     #6FA8C7;
+
+    --promoted-bg:       #221F1A;
+    --promoted-border:   #3D3527;
   }
 }
