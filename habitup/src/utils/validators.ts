@@ -1,23 +1,31 @@
 import { z } from 'zod';
 
-export const registerSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo 8 caracteres')
-    .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
-    .regex(/[0-9]/, 'Debe contener al menos un número'),
-  full_name: z.string().min(3, 'Nombre demasiado corto').max(100),
-  user_type: z.enum(['cliente', 'professional']),
-  phone: z
-    .string()
-    .regex(/^[6-9]\d{8}$/, 'Teléfono español inválido')
-    .optional()
-    .or(z.literal('')),
-});
+export const registerSchema = z
+  .object({
+    first_name: z.string().trim().min(2, 'Introduce tu nombre').max(60),
+    last_name: z.string().trim().min(2, 'Introduce tus apellidos').max(80),
+    email: z.string().trim().toLowerCase().email('Introduce un correo válido'),
+    phone: z.string().trim().regex(/^(?:\+34)?[6-9]\d{8}$/, 'Introduce un teléfono español válido'),
+    locality: z.string().trim().min(2, 'Introduce tu localidad').max(100),
+    postal_code: z.string().trim().regex(/^\d{5}$/, 'Introduce un código postal de 5 cifras'),
+    password: z
+      .string()
+      .min(8, 'Usa al menos 8 caracteres')
+      .regex(/[a-z]/, 'Añade una letra minúscula')
+      .regex(/[A-Z]/, 'Añade una letra mayúscula')
+      .regex(/[0-9]/, 'Añade un número'),
+    confirm_password: z.string(),
+    user_type: z.enum(['cliente', 'professional']),
+    accepted_terms: z.boolean().refine(Boolean, 'Debes aceptar los términos y la política de privacidad'),
+    marketing_consent: z.boolean(),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: 'Las contraseñas no coinciden',
+    path: ['confirm_password'],
+  });
 
 export const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  email: z.string().trim().toLowerCase().email('Introduce un correo válido'),
   password: z.string().min(1, 'Introduce tu contraseña'),
 });
 

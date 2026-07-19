@@ -147,13 +147,13 @@ export default function ProfessionalProjectDetailScreen() {
             <View className="h-px bg-border/50 my-3" />
             <FinanceRow
               label="Tu cobro"
-              value={formatCurrency(project.professional_receives)}
+              value={formatCurrency(project.professional_receives ?? 0)}
               sublabel={`Tras comisión ${project.platform_commission_pct}%`}
               highlight
             />
             <FinanceRow
               label="Comisión HabitUp"
-              value={formatCurrency(project.platform_commission_amount)}
+              value={formatCurrency(project.platform_commission_amount ?? 0)}
               sublabel={`${project.platform_commission_pct}%`}
             />
           </Section>

@@ -18,7 +18,7 @@ interface Props {
 export function EmptyState({ icon, title, description, action, secondaryAction }: Props) {
   return (
     <View className="items-center justify-center px-6 py-20">
-      <View className="w-20 h-20 bg-primary/10 rounded-full items-center justify-center mb-6">
+      <View className="w-20 h-20 bg-blueprint-soft rounded items-center justify-center mb-6">
         {icon}
       </View>
       <Text className="text-xl font-bold text-text mb-2 text-center">{title}</Text>

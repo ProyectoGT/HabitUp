@@ -6,25 +6,32 @@ export interface SignUpParams {
   email: string;
   password: string;
   full_name: string;
+  phone: string;
+  locality: string;
+  postal_code: string;
   user_type: 'cliente' | 'professional';
+  accepted_terms: boolean;
+  marketing_consent: boolean;
 }
 
 export interface UpdateUserProfileParams {
   full_name?: string;
   phone?: string | null;
   bio?: string | null;
+  onboarding_completed_at?: string | null;
 }
 
 export const authService = {
-  async signUp({ email, password, full_name, user_type }: SignUpParams) {
+  async signUp(params: SignUpParams) {
+    const { email, password, ...metadata } = params;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name, user_type } },
+      options: { data: metadata, emailRedirectTo: 'habitup://verify-email' },
     });
     if (error) throw error;
-    trackEvent('user_signed_up', { role: user_type });
-    trackEvent('role_selected', { role: user_type });
+    trackEvent('user_signed_up', { role: params.user_type });
+    trackEvent('role_selected', { role: params.user_type });
     return data;
   },
 
@@ -39,9 +46,50 @@ export const authService = {
     if (error) throw error;
   },
 
-  async resetPassword(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+  async deleteAccount() {
+    const { error } = await supabase.rpc('delete_my_account');
     if (error) throw error;
+  },
+
+  async resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'habitup://reset-password',
+    });
+    if (error) throw error;
+  },
+
+  async updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  },
+
+  async resendConfirmation(email: string) {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: 'habitup://verify-email' },
+    });
+    if (error) throw error;
+  },
+
+  async completeAuthLink(url: string) {
+    const parsed = new URL(url);
+    const code = parsed.searchParams.get('code');
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+      return data.session;
+    }
+
+    const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+    const accessToken = fragment.get('access_token');
+    const refreshToken = fragment.get('refresh_token');
+    if (accessToken && refreshToken) {
+      const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      if (error) throw error;
+      return data.session;
+    }
+    return null;
   },
 
   async getSession() {

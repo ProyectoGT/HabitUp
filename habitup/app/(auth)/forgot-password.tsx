@@ -1,75 +1,26 @@
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Text } from 'react-native';
 import { Link } from 'expo-router';
-import { useForm, Controller } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
 import { authService } from '@/services/auth.service';
+import { getAuthErrorMessage } from '@/utils/authErrors';
+import { Button, Input, Screen } from '@/components/ui';
 
-const schema = z.object({
-  email: z.string().email('Email inválido'),
-});
-
+const schema = z.object({ email: z.string().trim().toLowerCase().email('Introduce un correo válido') });
 type FormData = z.infer<typeof schema>;
 
 export default function ForgotPasswordScreen() {
-  const [sent, setSent] = useState(false);
-  const { control, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  });
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      await authService.resetPassword(data.email);
-      setSent(true);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Error al enviar el email';
-      setError('root', { message });
-    }
+  const [sentTo, setSentTo] = useState('');
+  const { control, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { email: '' } });
+  const submit = async ({ email }: FormData) => {
+    try { await authService.resetPassword(email); setSentTo(email); }
+    catch (error) { setError('root', { message: getAuthErrorMessage(error, 'No hemos podido enviar el correo.') }); }
   };
-
-  return (
-    <View className="flex-1 justify-center px-6 bg-white">
-      <Text className="text-xl font-semibold mb-2">Recuperar contraseña</Text>
-      <Text className="text-gray-500 mb-6">Te enviaremos un enlace para restablecer tu contraseña.</Text>
-
-      {sent ? (
-        <>
-          <Text className="text-green-600 mb-6">Email enviado. Revisa tu bandeja de entrada.</Text>
-          <Link href="/(auth)/login" className="text-brand text-center font-semibold">Volver al login</Link>
-        </>
-      ) : (
-        <>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                className="border border-gray-300 rounded-lg px-4 py-3 mb-1"
-                placeholder="Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
-          {errors.email && <Text className="text-red-500 text-sm mb-3">{errors.email.message}</Text>}
-          {errors.root && <Text className="text-red-500 text-sm mb-3">{errors.root.message}</Text>}
-
-          <TouchableOpacity
-            onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-            className="bg-brand py-4 rounded-xl items-center mt-4"
-          >
-            {isSubmitting
-              ? <ActivityIndicator color="white" />
-              : <Text className="text-white font-semibold">Enviar email</Text>}
-          </TouchableOpacity>
-
-          <Link href="/(auth)/login" className="text-brand text-center mt-4">Volver al login</Link>
-        </>
-      )}
-    </View>
-  );
+  return <Screen className="px-5 justify-center">
+    <Text className="text-3xl font-bold text-text mb-2">Recupera tu contraseña</Text>
+    <Text className="text-base text-muted-text mb-8">{sentTo ? `Si existe una cuenta para ${sentTo}, recibirás un enlace para crear una contraseña nueva.` : 'Te enviaremos un enlace seguro para crear una contraseña nueva.'}</Text>
+    {sentTo ? <><Button label="Enviar de nuevo" variant="outline" isLoading={isSubmitting} onPress={handleSubmit(submit)} /><Link href="/(auth)/login" className="text-primary text-center font-semibold mt-6">Volver a iniciar sesión</Link></> : <><Controller control={control} name="email" render={({ field: { value, onChange, onBlur } }) => <Input label="Correo electrónico" value={value} onChangeText={onChange} onBlur={onBlur} keyboardType="email-address" autoCapitalize="none" autoComplete="email" error={errors.email?.message} />} />{errors.root?.message ? <Text accessibilityRole="alert" className="text-error mb-4">{errors.root.message}</Text> : null}<Button label="Enviar enlace" size="lg" isLoading={isSubmitting} onPress={handleSubmit(submit)} /><Link href="/(auth)/login" className="text-primary text-center font-semibold mt-6">Volver a iniciar sesión</Link></>}
+  </Screen>;
 }

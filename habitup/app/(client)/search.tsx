@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  ActivityIndicator, ScrollView,
+  ActivityIndicator, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProfessionals } from '@/hooks/useProfessionals';
@@ -10,17 +10,34 @@ import { professionalsService } from '@/services/professionals.service';
 import type { Category } from '@/types/models';
 import { Screen, Input, EmptyState, ErrorState } from '@/components/ui';
 import { Search, MapPin } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { getCategoryIcon, ICON_STROKE_WIDTH } from '@/utils/categoryIcons';
+import { BLUEPRINT_TRACKING } from '@/utils/colors';
+
+const MAX_PROMOTED = 3;
+const PROMOTED_AFTER = 3;
+
+/**
+ * Ancho maximo del contenido.
+ *
+ * HabitUp es una app de movil. En Expo Web la ventana puede tener 1900px y
+ * sin este tope la barra de busqueda mide un metro y las tarjetas se estiran
+ * hasta perder toda proporcion. Centramos el contenido en una columna de
+ * ancho de movil.
+ */
+const MAX_CONTENT_WIDTH = 520;
 
 export default function SearchScreen() {
   const router = useRouter();
   const { results, isLoading, error, hasMore, search } = useProfessionals();
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { colors } = useThemeColors();
+  const { width } = useWindowDimensions();
+
+  const contentWidth = Math.min(width, MAX_CONTENT_WIDTH);
+  const sideGutter = Math.max((width - contentWidth) / 2, 0);
 
   const [city, setCity] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [minRating, setMinRating] = useState<number | undefined>();
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -32,176 +49,224 @@ export default function SearchScreen() {
     search({
       city: city.trim() || undefined,
       category_slug: selectedCategory?.slug,
-      min_rating: minRating,
     });
-  }, [city, selectedCategory, minRating, search]);
+  }, [city, selectedCategory, search]);
 
   const onLoadMore = () => {
     if (!isLoading && hasMore) {
-      search({ city: city.trim() || undefined, category_slug: selectedCategory?.slug, min_rating: minRating }, false);
+      search(
+        {
+          city: city.trim() || undefined,
+          category_slug: selectedCategory?.slug,
+        },
+        false,
+      );
     }
   };
 
-  const RATINGS = [
-    { label: 'Todos',  value: undefined },
-    { label: '4★+',    value: 4 },
-    { label: '4.5★+',  value: 4.5 },
-  ];
+  const listData = useMemo(() => {
+    const promoted = results.filter((p) => p.is_promoted).slice(0, MAX_PROMOTED);
+    const organic = results.filter((p) => !p.is_promoted);
+    if (promoted.length === 0) return organic;
+    return [
+      ...organic.slice(0, PROMOTED_AFTER),
+      ...promoted,
+      ...organic.slice(PROMOTED_AFTER),
+    ];
+  }, [results]);
 
-  const surfaceBg  = isDark ? '#1A1D29' : '#FFFFFF';
-  const borderCol  = isDark ? '#2D3548' : '#E2E8F0';
-  const chipBg     = isDark ? '#1E2433' : '#F1F5F9';
-  const chipText   = isDark ? '#94A3B8' : '#64748B';
+  const sectionLabel = {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: BLUEPRINT_TRACKING,
+    color: colors.mutedText,
+    marginBottom: 8,
+  };
+
+  /**
+   * La cabecera va DENTRO de la lista, no fija encima.
+   * Al bajar se va con el contenido y deja toda la pantalla para resultados.
+   */
+  const Header = (
+    <View style={{ paddingTop: 24, paddingBottom: 20 }}>
+      <Text
+        style={{
+          fontSize: 24,
+          fontWeight: '800',
+          color: colors.text,
+          letterSpacing: -0.4,
+          marginBottom: 2,
+        }}
+      >
+        Encuentra tu profesional
+      </Text>
+      <Text style={{ fontSize: 13, color: colors.mutedText, marginBottom: 16 }}>
+        Reformas, urgencias y mantenimiento
+      </Text>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+        <View style={{ flex: 1 }}>
+          <Input
+            placeholder="Ciudad o zona..."
+            value={city}
+            onChangeText={setCity}
+            onSubmitEditing={onSearch}
+            returnKeyType="search"
+            leftIcon={
+              <MapPin size={18} color={colors.mutedText} strokeWidth={ICON_STROKE_WIDTH} />
+            }
+            className="mb-0"
+            style={{ marginBottom: 0 }}
+          />
+        </View>
+        <TouchableOpacity
+          onPress={onSearch}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Buscar profesionales"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 6,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Search size={19} color={colors.onPrimary} strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+
+      <Text style={sectionLabel}>ESPECIALIDAD</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      >
+        <CategoryChip
+          label="Todas"
+          active={!selectedCategory}
+          onPress={() => setSelectedCategory(null)}
+        />
+        {categories.map((cat) => (
+          <CategoryChip
+            key={cat.id}
+            label={cat.name}
+            slug={cat.slug}
+            active={selectedCategory?.id === cat.id}
+            onPress={() => setSelectedCategory(cat)}
+          />
+        ))}
+      </ScrollView>
+
+      <View
+        style={{
+          height: 1,
+          backgroundColor: colors.border,
+          marginTop: 20,
+        }}
+      />
+    </View>
+  );
+
+  if (error) {
+    return (
+      <Screen safeArea={false} className="flex-1">
+        <ErrorState message={error} onRetry={onSearch} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeArea={false} className="flex-1">
-      {/* ── Sticky header ── */}
-      <View
-        style={{
-          paddingTop: 60,
-          paddingBottom: 12,
-          paddingHorizontal: 24,
-          backgroundColor: surfaceBg,
-          borderBottomWidth: 1,
-          borderBottomColor: borderCol,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 3,
+      <FlatList
+        data={listData}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={Header}
+        contentContainerStyle={{
+          paddingHorizontal: 16 + sideGutter,
+          paddingTop: 36,
+          paddingBottom: 100,
         }}
-      >
-        <Text className="text-2xl font-extrabold text-text mb-4">Explorar</Text>
-
-        {/* Search bar */}
-        <View className="flex-row items-center gap-3 mb-4">
-          <View style={{ flex: 1 }}>
-            <Input
-              placeholder="Ciudad o zona..."
-              value={city}
-              onChangeText={setCity}
-              onSubmitEditing={onSearch}
-              returnKeyType="search"
-              leftIcon={<MapPin size={20} color={isDark ? '#94A3B8' : '#64748B'} />}
-              className="mb-0 border-border/80"
-              style={{ marginBottom: 0 }}
+        renderItem={({ item }) => (
+          <ProfessionalCard
+            professional={item}
+            promoted={Boolean(item.is_promoted)}
+            onPress={() => router.push(`/(client)/professional/${item.id}`)}
+          />
+        )}
+        ListEmptyComponent={
+          isLoading ? null : (
+            <EmptyState
+              icon={
+                <Search size={32} color={colors.mutedText} strokeWidth={ICON_STROKE_WIDTH} />
+              }
+              title="Aún no hay nada construido aquí"
+              description="Prueba a ampliar la zona o quitar algún filtro."
             />
-          </View>
-          <TouchableOpacity
-            onPress={onSearch}
-            activeOpacity={0.85}
-            style={{
-              width: 50, height: 50,
-              borderRadius: 14,
-              backgroundColor: '#6366F1',
-              alignItems: 'center', justifyContent: 'center',
-              shadowColor: '#6366F1',
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.35,
-              shadowRadius: 6,
-              elevation: 4,
-            }}
-          >
-            <Search size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Category chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -24 }}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
-          className="mb-3"
-        >
-          <TouchableOpacity
-            onPress={() => setSelectedCategory(null)}
-            activeOpacity={0.8}
-            style={{
-              paddingVertical: 7, paddingHorizontal: 16,
-              borderRadius: 20,
-              backgroundColor: !selectedCategory ? '#6366F1' : chipBg,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '600', color: !selectedCategory ? '#fff' : chipText }}>
-              Todos
-            </Text>
-          </TouchableOpacity>
-
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setSelectedCategory(cat)}
-              activeOpacity={0.8}
-              style={{
-                paddingVertical: 7, paddingHorizontal: 16,
-                borderRadius: 20,
-                backgroundColor: selectedCategory?.id === cat.id ? '#6366F1' : chipBg,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: selectedCategory?.id === cat.id ? '#fff' : chipText }}>
-                {cat.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Rating chips */}
-        <View className="flex-row gap-2">
-          {RATINGS.map(({ label, value }) => (
-            <TouchableOpacity
-              key={label}
-              onPress={() => setMinRating(value)}
-              activeOpacity={0.8}
-              style={{
-                paddingVertical: 6, paddingHorizontal: 14,
-                borderRadius: 20,
-                backgroundColor: minRating === value ? 'rgba(245,158,11,0.15)' : chipBg,
-                borderWidth: 1.5,
-                borderColor: minRating === value ? '#F59E0B' : 'transparent',
-              }}
-            >
-              <Text style={{
-                fontSize: 12, fontWeight: '600',
-                color: minRating === value ? '#F59E0B' : chipText,
-              }}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* ── Results ── */}
-      {error ? (
-        <ErrorState message={error} onRetry={onSearch} />
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 100 }}
-          renderItem={({ item }) => (
-            <ProfessionalCard
-              professional={item}
-              onPress={() => router.push(`/(client)/professional/${item.id}`)}
+          )
+        }
+        ListFooterComponent={
+          isLoading ? (
+            <ActivityIndicator
+              style={{ marginVertical: 32 }}
+              color={colors.primary}
+              size="large"
             />
-          )}
-          ListEmptyComponent={
-            isLoading ? null : (
-              <EmptyState
-                icon={<Search size={32} color="#94A3B8" />}
-                title="Sin resultados"
-                description="No encontramos profesionales con estos filtros."
-              />
-            )
-          }
-          ListFooterComponent={
-            isLoading ? <ActivityIndicator style={{ marginVertical: 32 }} color="#6366F1" size="large" /> : null
-          }
-          onEndReached={onLoadMore}
-          onEndReachedThreshold={0.3}
+          ) : null
+        }
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.3}
+      />
+    </Screen>
+  );
+}
+
+function CategoryChip({
+  label,
+  slug,
+  active,
+  onPress,
+}: {
+  label: string;
+  slug?: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useThemeColors();
+  const Icon = slug ? getCategoryIcon(slug) : null;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 4,
+        backgroundColor: active ? colors.primary : 'transparent',
+        borderWidth: 1,
+        borderColor: active ? colors.primary : colors.border,
+      }}
+    >
+      {Icon && (
+        <Icon
+          size={15}
+          color={active ? colors.onPrimary : colors.mutedText}
+          strokeWidth={ICON_STROKE_WIDTH}
         />
       )}
-    </Screen>
+      <Text
+        style={{ fontSize: 13, fontWeight: '600', color: active ? colors.onPrimary : colors.text }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
