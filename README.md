@@ -8,7 +8,7 @@ Marketplace movil para conectar clientes con profesionales de reformas y rehabil
 
 Este README refleja el estado real del repo a 2026-06-01.
 
-- App: React Native + Expo SDK 54 + Expo Router.
+- App: React Native + Expo SDK 54 + Expo Router, con navegación separada por autenticación y rol.
 - Estilos: NativeWind v4 con `className`.
 - Backend: Supabase Auth, PostgreSQL, RLS, Storage, Realtime y Edge Functions.
 - Chat: `conversations` es el agregado principal; `messages.project_id` queda como compatibilidad opcional.
@@ -16,6 +16,7 @@ Este README refleja el estado real del repo a 2026-06-01.
 - Storage: todas las subidas pasan por `src/services/storage.service.ts`.
 - Observabilidad: la app escribe eventos/errores mediante RPC segura, no inserts directos.
 - Admin analytics: el panel lee metricas mediante RPCs admin (`admin_kpi_overview`, `admin_conversion_funnel`, `admin_daily_trend`).
+- Cuenta: registro ampliado, verificación de correo, recuperación por deep link y eliminación autoservicio.
 
 ## Requisitos
 
@@ -63,7 +64,7 @@ npm run android
 
 ## Supabase
 
-Las migraciones reales estan en `habitup/supabase/migrations/` y se aplican en orden `20250101000000` a `20250101000020`.
+Las migraciones reales estan en `habitup/supabase/migrations/` y se aplican por orden de nombre. Las migraciones `25` y `26` añaden los campos del registro móvil y la eliminación autoservicio de cuenta.
 
 Para entorno local:
 

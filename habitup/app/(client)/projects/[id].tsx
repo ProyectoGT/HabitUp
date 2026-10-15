@@ -189,7 +189,7 @@ export default function ClientProjectDetailScreen() {
           <Section title="Resumen">
             <Row label="Profesional" value={proName} />
             <Row label="Precio acordado" value={formatCurrency(project.agreed_price)} highlight />
-            <Row label="Comisión plataforma" value={formatCurrency(project.platform_commission_amount)} />
+            <Row label="Comisión plataforma" value={formatCurrency(project.platform_commission_amount ?? 0)} />
             {project.start_date && <Row label="Inicio" value={formatDate(project.start_date)} />}
             {project.expected_end_date && <Row label="Fin previsto" value={formatDate(project.expected_end_date)} />}
             {project.actual_end_date && <Row label="Finalizado" value={formatDate(project.actual_end_date)} />}

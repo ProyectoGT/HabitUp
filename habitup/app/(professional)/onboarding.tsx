@@ -1,343 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useForm, Controller, type Resolver, type Control, type FieldErrors } from 'react-hook-form';
+import { Controller, type Control, type FieldErrors, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Building2, Check, UserRound } from 'lucide-react-native';
+import { Button, Input, Screen, StepIndicator } from '@/components/ui';
 import { professionalsService } from '@/services/professionals.service';
 import { useAuthStore } from '@/stores/authStore';
-import { Screen, Input, Button, Card, StepIndicator } from '@/components/ui';
-import { Briefcase, Building2, MapPin, Map, MapPinHouse, Award, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import type { Category } from '@/types/models';
-import { useColorScheme } from 'nativewind';
 
-// ── Step 1 schema ─────────────────────────────────
-const step1Schema = z.object({
+const schema = z.object({
   company_type: z.enum(['autonomo', 'empresa']),
-  company_name: z.string().optional(),
-  description: z.string().min(30, 'Mínimo 30 caracteres. Cuéntanos tu experiencia'),
-  experience_years: z.coerce.number().int().min(0).max(60),
-  location_city: z.string().min(2, 'Indica tu ciudad'),
-  location_region: z.string().min(2, 'Indica tu comunidad autónoma'),
-  service_radius_km: z.coerce.number().int().min(5).max(500),
+  company_name: z.string().trim().max(200).optional(),
+  description: z.string().trim().min(30, 'Cuéntanos tu experiencia en al menos 30 caracteres').max(1200),
+  experience_years: z.number().int().min(0, 'Introduce un valor válido').max(60),
+  location_city: z.string().trim().min(2, 'Introduce tu ciudad'),
+  location_region: z.string().trim().min(2, 'Introduce tu comunidad autónoma'),
+  service_radius_km: z.number().int().min(5, 'El radio mínimo es de 5 km').max(300),
 });
+type ProfileForm = z.infer<typeof schema>;
 
-type Step1Data = z.infer<typeof step1Schema>;
-
-export default function OnboardingScreen() {
+export default function ProfessionalOnboardingScreen() {
   const router = useRouter();
-  const setProfessionalProfile = useAuthStore((s) => s.setProfessionalProfile);
-
+  const setProfessionalProfile = useAuthStore((state) => state.setProfessionalProfile);
   const [step, setStep] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [categoriesError, setCategoriesError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
-  
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  const { control, handleSubmit, formState: { errors } } = useForm<Step1Data>({
-    resolver: zodResolver(step1Schema) as Resolver<Step1Data>,
-    defaultValues: {
-      company_type: 'autonomo',
-      service_radius_km: 50,
-      experience_years: 1,
-    },
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { control, trigger, getValues, formState: { errors } } = useForm<ProfileForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { company_type: 'autonomo', company_name: '', description: '', experience_years: 1, location_city: '', location_region: '', service_radius_km: 30 },
   });
 
-  useEffect(() => {
-    professionalsService.getCategories().then(setCategories);
-  }, []);
-
-  const onStep1Submit = (data: Step1Data) => {
-    setStep1Data(data);
-    setStep(1);
+  const loadCategories = async () => {
+    setLoadingCategories(true); setCategoryError('');
+    try { setCategories(await professionalsService.getCategories()); }
+    catch { setCategoryError('No hemos podido cargar las especialidades.'); }
+    finally { setLoadingCategories(false); }
   };
+  useEffect(() => { void loadCategories(); }, []);
 
-  const toggleCategory = (id: string) => {
-    setSelectedCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    );
-    setCategoriesError('');
+  const next = async () => {
+    const fields: (keyof ProfileForm)[] = step === 0 ? ['company_type', 'company_name', 'description'] : ['experience_years', 'location_city', 'location_region', 'service_radius_km'];
+    if (await trigger(fields)) setStep((value) => value + 1);
   };
-
-  const onFinish = async () => {
-    if (selectedCategoryIds.length === 0) {
-      setCategoriesError('Selecciona al menos una especialidad');
-      return;
-    }
-    if (!step1Data) return;
-
-    setIsSubmitting(true);
+  const finish = async () => {
+    if (!selected.length) { setCategoryError('Selecciona al menos una especialidad.'); return; }
+    setSaving(true); setCategoryError('');
     try {
-      const profile = await professionalsService.createProfile(step1Data);
-      await professionalsService.setCategories(profile.id, selectedCategoryIds);
+      const profile = await professionalsService.createProfile(getValues());
+      await professionalsService.setCategories(profile.id, selected);
       setProfessionalProfile(profile);
       router.replace('/(professional)/home');
-    } catch (e) {
-      setCategoriesError(e instanceof Error ? e.message : 'Error al guardar el perfil');
-    } finally {
-      setIsSubmitting(false);
-    }
+    } catch { setCategoryError('No hemos podido guardar el perfil. Tus datos siguen en pantalla para que puedas intentarlo de nuevo.'); }
+    finally { setSaving(false); }
   };
 
-  return (
-    <Screen safeArea={false} className="flex-1">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerClassName="px-6 pt-16 pb-10" showsVerticalScrollIndicator={false}>
-          <Text className="text-3xl font-extrabold text-text mb-2">Crea tu perfil</Text>
-          <Text className="text-muted-text text-base mb-8 leading-relaxed">
-            {step === 0 ? 'Completa los datos de tu negocio para empezar a recibir presupuestos.' : '¿Cuáles son tus especialidades principales?'}
-          </Text>
-
-          <View className="mb-8">
-            <StepIndicator total={2} current={step} />
-          </View>
-
-          {step === 0 ? (
-            <Step1Form control={control} errors={errors} onSubmit={handleSubmit(onStep1Submit)} isDark={isDark} />
-          ) : (
-            <Step2Categories
-              categories={categories}
-              selected={selectedCategoryIds}
-              onToggle={toggleCategory}
-              error={categoriesError}
-              isSubmitting={isSubmitting}
-              onBack={() => setStep(0)}
-              onFinish={onFinish}
-            />
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Screen>
-  );
+  return <Screen safeArea={false}><KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="px-5 pt-14 pb-8" showsVerticalScrollIndicator={false}>
+    <Text className="text-muted-text font-semibold mb-2">Perfil profesional · {step + 1} de 3</Text>
+    <Text className="text-3xl font-bold text-text mb-2">{step === 0 ? 'Presenta tu negocio' : step === 1 ? 'Define dónde trabajas' : 'Elige tus especialidades'}</Text>
+    <Text className="text-base text-muted-text leading-6 mb-6">{step === 0 ? 'Esta información ayuda a los clientes a entender quién eres.' : step === 1 ? 'Solo mostraremos una ubicación aproximada en oportunidades públicas.' : 'Selecciona las áreas en las que aceptas nuevos trabajos.'}</Text>
+    <StepIndicator total={3} current={step} />
+    {step === 0 ? <BusinessStep control={control} errors={errors} /> : null}
+    {step === 1 ? <LocationStep control={control} errors={errors} /> : null}
+    {step === 2 ? <View><View className="flex-row flex-wrap gap-2">{categories.map((category) => { const checked = selected.includes(category.id); return <Pressable key={category.id} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => { setSelected((value) => checked ? value.filter((id) => id !== category.id) : [...value, category.id]); setCategoryError(''); }} className={`min-h-12 px-4 rounded-xl border flex-row items-center ${checked ? 'bg-primary border-primary' : 'bg-surface border-border'}`}>{checked ? <Check size={16} color="white" /> : null}<Text className={`font-semibold ${checked ? 'text-white ml-2' : 'text-text'}`}>{category.name}</Text></Pressable>; })}</View>{loadingCategories ? <Text className="text-muted-text mt-4">Cargando especialidades…</Text> : null}{categoryError ? <Text className="text-error mt-4">{categoryError}</Text> : null}{!loadingCategories && !categories.length ? <Button label="Volver a cargar" variant="outline" onPress={loadCategories} className="mt-4" /> : null}</View> : null}
+    <View className="flex-row gap-3 mt-8">{step > 0 ? <Button label="Atrás" variant="outline" onPress={() => setStep((value) => value - 1)} className="flex-1" /> : null}<Button label={step === 2 ? 'Guardar perfil' : 'Siguiente'} isLoading={saving} disabled={step === 2 && loadingCategories} onPress={step === 2 ? finish : next} className="flex-1" /></View>
+  </ScrollView></KeyboardAvoidingView></Screen>;
 }
 
-// ── Sub-componente Step1 ───────────────────────────
-function Step1Form({
-  control, errors, onSubmit, isDark
-}: {
-  control: Control<Step1Data>;
-  errors: FieldErrors<Step1Data>;
-  onSubmit: () => void;
-  isDark: boolean;
-}) {
-  return (
-    <View className="gap-6">
-      {/* Tipo de empresa */}
-      <View>
-        <Text className="text-sm font-bold text-text mb-3">Tipo de empresa</Text>
-        <Controller
-          control={control}
-          name="company_type"
-          render={({ field: { onChange, value } }) => (
-            <View className="flex-row gap-4 mb-2">
-              {(['autonomo', 'empresa'] as const).map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  activeOpacity={0.7}
-                  onPress={() => onChange(t)}
-                  className={`flex-1 py-4 rounded-2xl border-2 items-center flex-row justify-center gap-2 ${
-                    value === t 
-                      ? 'bg-primary/5 border-primary' 
-                      : 'bg-surface border-border'
-                  }`}
-                >
-                  {t === 'autonomo' ? (
-                    <Briefcase size={20} color={value === t ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} />
-                  ) : (
-                    <Building2 size={20} color={value === t ? '#6366F1' : (isDark ? '#94A3B8' : '#64748B')} />
-                  )}
-                  <Text className={`font-bold ${value === t ? 'text-primary' : 'text-muted-text'}`}>
-                    {t === 'autonomo' ? 'Autónomo' : 'Empresa'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        />
-      </View>
-
-      <Controller
-        control={control}
-        name="company_name"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Nombre de empresa (opcional)"
-            placeholder="Ej: Reformas García S.L."
-            onChangeText={onChange}
-            value={value}
-            leftIcon={<Building2 size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="description"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Descripción *"
-            placeholder="Cuéntanos tu experiencia, qué trabajos realizas..."
-            multiline
-            numberOfLines={4}
-            onChangeText={onChange}
-            value={value}
-            error={errors.description?.message}
-          />
-        )}
-      />
-
-      <View className="flex-row gap-4">
-        <View className="flex-1">
-          <Controller
-            control={control}
-            name="experience_years"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Años de experiencia *"
-                keyboardType="numeric"
-                onChangeText={onChange}
-                value={String(value ?? '')}
-                error={errors.experience_years?.message}
-                leftIcon={<Award size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
-              />
-            )}
-          />
-        </View>
-        <View className="flex-1">
-          <Controller
-            control={control}
-            name="service_radius_km"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Radio de trabajo (km) *"
-                keyboardType="numeric"
-                onChangeText={onChange}
-                value={String(value ?? '')}
-                error={errors.service_radius_km?.message}
-                leftIcon={<MapPinHouse size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
-              />
-            )}
-          />
-        </View>
-      </View>
-
-      <Controller
-        control={control}
-        name="location_city"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Ciudad *"
-            placeholder="Ej: Madrid"
-            onChangeText={onChange}
-            value={value}
-            error={errors.location_city?.message}
-            leftIcon={<MapPin size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="location_region"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Comunidad autónoma *"
-            placeholder="Ej: Comunidad de Madrid"
-            onChangeText={onChange}
-            value={value}
-            error={errors.location_region?.message}
-            leftIcon={<Map size={18} color={isDark ? '#94A3B8' : '#64748B'} />}
-          />
-        )}
-      />
-
-      <Button 
-        label="Siguiente paso" 
-        onPress={onSubmit} 
-        size="lg"
-        rightIcon={<ArrowRight size={20} color="#FFF" />}
-        className="mt-4 shadow-sm shadow-primary/30"
-      />
-    </View>
-  );
+function BusinessStep({ control, errors }: { control: Control<ProfileForm>; errors: FieldErrors<ProfileForm> }) {
+  return <View><Text className="text-sm font-semibold text-text mb-2">Tipo de actividad</Text><Controller control={control} name="company_type" render={({ field: { value, onChange } }) => <View className="flex-row gap-3 mb-6"><Choice label="Autónomo" selected={value === 'autonomo'} Icon={UserRound} onPress={() => onChange('autonomo')} /><Choice label="Empresa" selected={value === 'empresa'} Icon={Building2} onPress={() => onChange('empresa')} /></View>} /><FormField control={control} name="company_name" label="Nombre comercial (opcional)" placeholder="Ej. Reformas García" error={errors.company_name?.message} /><FormField control={control} name="description" label="Experiencia y tipo de trabajos" placeholder="Explica qué trabajos realizas y qué te diferencia" multiline error={errors.description?.message} /></View>;
 }
-
-// ── Sub-componente Step2 ───────────────────────────
-function Step2Categories({
-  categories, selected, onToggle, error, isSubmitting, onBack, onFinish,
-}: {
-  categories: Category[];
-  selected: string[];
-  onToggle: (id: string) => void;
-  error: string;
-  isSubmitting: boolean;
-  onBack: () => void;
-  onFinish: () => void;
-}) {
-  return (
-    <View className="flex-1">
-      <Card variant="flat" className="bg-primary/5 border border-primary/20 p-4 mb-6">
-        <Text className="text-primary font-bold text-sm mb-1">Nota importante</Text>
-        <Text className="text-muted-text text-sm leading-relaxed">
-          Selecciona todas las que apliquen. La primera categoría seleccionada será configurada como tu especialidad principal.
-        </Text>
-      </Card>
-
-      <View className="flex-row flex-wrap gap-3 mb-8">
-        {categories.map((cat) => {
-          const isSelected = selected.includes(cat.id);
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              activeOpacity={0.7}
-              onPress={() => onToggle(cat.id)}
-              className={`px-5 py-3 rounded-full border-2 flex-row items-center gap-2 ${
-                isSelected 
-                  ? 'bg-primary border-primary' 
-                  : 'bg-surface border-border/60'
-              }`}
-            >
-              {isSelected && <CheckCircle2 size={16} color="#FFF" />}
-              <Text className={`font-bold ${isSelected ? 'text-white' : 'text-text'}`}>
-                {cat.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {error ? (
-        <Text className="text-error text-sm text-center mb-6 bg-error/10 p-3 rounded-xl">
-          {error}
-        </Text>
-      ) : null}
-
-      <View className="flex-row gap-4 mt-auto pt-4 border-t border-border/30">
-        <Button 
-          label="Atrás" 
-          variant="outline" 
-          onPress={onBack}
-          leftIcon={<ArrowLeft size={20} color="#6366F1" />}
-          className="flex-1"
-        />
-        <Button 
-          label="Finalizar" 
-          onPress={onFinish}
-          isLoading={isSubmitting}
-          className="flex-1 shadow-sm shadow-primary/30"
-          rightIcon={<CheckCircle2 size={20} color="#FFF" />}
-        />
-      </View>
-    </View>
-  );
+function LocationStep({ control, errors }: { control: Control<ProfileForm>; errors: FieldErrors<ProfileForm> }) {
+  return <View><FormField control={control} name="location_city" label="Ciudad" placeholder="Madrid" error={errors.location_city?.message} /><FormField control={control} name="location_region" label="Comunidad autónoma" placeholder="Comunidad de Madrid" error={errors.location_region?.message} /><FormField control={control} name="experience_years" label="Años de experiencia" keyboardType="number-pad" error={errors.experience_years?.message} /><FormField control={control} name="service_radius_km" label="Radio de trabajo en kilómetros" keyboardType="number-pad" error={errors.service_radius_km?.message} /></View>;
 }
+function FormField({ control, name, error, ...props }: { control: Control<ProfileForm>; name: keyof ProfileForm; error?: string; [key: string]: unknown }) { const numeric = name === 'experience_years' || name === 'service_radius_km'; return <Controller control={control} name={name} render={({ field: { value, onChange, onBlur } }) => <Input value={String(value ?? '')} onChangeText={(text) => onChange(numeric ? Number(text.replace(/\D/g, '')) : text)} onBlur={onBlur} error={error} {...props} />} />; }
+function Choice({ label, selected, Icon, onPress }: { label: string; selected: boolean; Icon: typeof UserRound; onPress: () => void }) { return <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onPress} className={`flex-1 min-h-16 rounded-xl border px-4 flex-row items-center ${selected ? 'border-primary bg-primary/5' : 'border-border bg-surface'}`}><Icon size={20} color={selected ? '#4F46E5' : '#475569'} /><Text className={`font-semibold ml-2 ${selected ? 'text-primary' : 'text-text'}`}>{label}</Text></Pressable>; }

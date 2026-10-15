@@ -9,8 +9,13 @@ import { useAuthStore } from '@/stores/authStore';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import type { Message } from '@/types/models';
-import { Screen, LoadingState, EmptyState } from '@/components/ui';
+import {
+  Screen, LoadingState, EmptyState, PhaseScaffold,
+  type ConversationPhase,
+} from '@/components/ui';
 import { ArrowLeft, MessageSquareMore } from 'lucide-react-native';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { ICON_STROKE_WIDTH } from '@/utils/categoryIcons';
 
 export default function ChatScreen() {
   const { projectId, recipientId, title } = useLocalSearchParams<{
@@ -20,9 +25,10 @@ export default function ChatScreen() {
   }>();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { colors } = useThemeColors();
   const listRef = useRef<FlatList<Message>>(null);
 
-  const { messages, isLoading, isSending, error, sendMessage } = useMessages(
+  const { conversation, messages, isLoading, isSending, error, sendMessage } = useMessages(
     projectId,
     recipientId,
   );
@@ -51,17 +57,31 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <Screen safeArea={false} className="flex-1">
-        {/* Header */}
-        <View className="bg-surface px-6 pt-16 pb-4 shadow-sm shadow-primary/10 border-b border-border/50 rounded-b-2xl z-10 flex-row items-center gap-4">
-          <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-            <ArrowLeft size={24} color="#6366F1" />
-          </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-xl font-extrabold text-text leading-tight" numberOfLines={1}>
-              {title ?? 'Proyecto'}
-            </Text>
-            <Text className="text-sm font-medium text-muted-text mt-0.5">Chat del proyecto</Text>
+        {/* Cabecera con el andamio de fases */}
+        <View className="bg-surface px-4 pt-16 pb-3 border-b border-border z-10">
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="p-2 -ml-2"
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+            >
+              <ArrowLeft size={22} color={colors.text} strokeWidth={ICON_STROKE_WIDTH} />
+            </TouchableOpacity>
+            <View className="flex-1">
+              <Text className="text-lg font-bold text-text leading-tight" numberOfLines={1}>
+                {title ?? 'Proyecto'}
+              </Text>
+            </View>
           </View>
+          {conversation && (
+            <View className="mt-2 ml-9">
+              <PhaseScaffold
+                phase={conversation.status as ConversationPhase}
+                variant="compact"
+              />
+            </View>
+          )}
         </View>
 
         {/* Mensajes */}
@@ -72,7 +92,8 @@ export default function ChatScreen() {
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
-            contentContainerClassName="px-4 pt-6 pb-2 flex-grow"
+            contentContainerClassName="px-4 pt-6 pb-2 flex-grow w-full self-center"
+            contentContainerStyle={{ maxWidth: 520 }}
             renderItem={({ item, index }) => {
               const isOwn = item.sender_id === user?.id;
               const prev = messages[index - 1];
@@ -92,9 +113,15 @@ export default function ChatScreen() {
             }}
             ListEmptyComponent={
               <EmptyState
-                icon={<MessageSquareMore size={40} color="#6366F1" />}
-                title="Sin mensajes"
-                description="Envía un mensaje para comenzar la conversación sobre este proyecto."
+                icon={
+                  <MessageSquareMore
+                    size={32}
+                    color={colors.blueprint}
+                    strokeWidth={ICON_STROKE_WIDTH}
+                  />
+                }
+                title="Aún no hay nada construido aquí"
+                description="Escribe el primer mensaje: cuenta qué necesitas y añade fotos si ayudan."
               />
             }
             onContentSizeChange={() =>
@@ -126,7 +153,7 @@ function DateSeparator({ date }: { date: string }) {
   });
   return (
     <View className="items-center my-4">
-      <Text className="text-[11px] font-bold text-muted-text bg-border/40 px-3 py-1.5 rounded-full capitalize">
+      <Text className="text-[11px] font-bold text-muted-text bg-surface-sunken px-3 py-1.5 rounded-chip capitalize">
         {label}
       </Text>
     </View>

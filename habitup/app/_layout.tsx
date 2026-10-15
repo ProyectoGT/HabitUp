@@ -31,19 +31,16 @@ export default function RootLayout() {
     const segs = segments as string[];
     const inAuthGroup = segs[0] === '(auth)';
     const inOnboarding = segs[0] === '(professional)' && segs[1] === 'onboarding';
+    const inClientOnboarding = segs[0] === '(client)' && segs[1] === 'onboarding';
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
       return;
     }
 
-    if (session && !user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
     if (session && user) {
-      if (inAuthGroup) {
+      const isPasswordRecovery = inAuthGroup && segs[1] === 'reset-password';
+      if (inAuthGroup && !isPasswordRecovery) {
         if (user.user_type === USER_TYPES.PROFESSIONAL) {
           if (!professionalProfile) {
             router.replace('/(professional)/onboarding');
@@ -51,7 +48,7 @@ export default function RootLayout() {
             router.replace('/(professional)/home');
           }
         } else {
-          router.replace('/(client)/home');
+          router.replace(user.onboarding_completed_at ? '/(client)/home' : '/(client)/onboarding');
         }
         return;
       }
@@ -62,6 +59,10 @@ export default function RootLayout() {
         !inOnboarding
       ) {
         router.replace('/(professional)/onboarding');
+      } else if (user.user_type === USER_TYPES.CLIENT && !user.onboarding_completed_at && !inClientOnboarding) {
+        router.replace('/(client)/onboarding');
+      } else if (segs[0] === undefined || segs.length === 0) {
+        router.replace(user.onboarding_completed_at ? '/(client)/home' : '/(client)/onboarding');
       }
     }
   }, [session, user, professionalProfile, isLoading, router, segments]);

@@ -145,6 +145,16 @@ export default function ProfessionalProfileScreen() {
     ]);
   };
 
+  const onDeleteAccount = () => {
+    Alert.alert('Eliminar cuenta', 'Se eliminarán permanentemente tu cuenta, perfil y datos asociados. Esta acción no se puede deshacer.', [
+      { text: 'Conservar cuenta', style: 'cancel' },
+      { text: 'Eliminar definitivamente', style: 'destructive', onPress: async () => {
+        try { await authService.deleteAccount(); reset(); router.replace('/(auth)/login'); }
+        catch { Alert.alert('No se pudo eliminar', 'Comprueba tu conexión y vuelve a intentarlo.'); }
+      } },
+    ]);
+  };
+
   const toggleCategory = (id: string) =>
     setSelectedCategoryIds((prev) =>
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
@@ -301,7 +311,7 @@ export default function ProfessionalProfileScreen() {
                   variant="outline"
                   size="sm"
                   leftIcon={<Camera size={16} />}
-                  onPress={() => router.push('/professional/verification')}
+                  onPress={() => router.push('/(professional)/verification')}
                 />
               )}
             </View>
@@ -351,7 +361,6 @@ export default function ProfessionalProfileScreen() {
           size="lg"
           className="mb-6 shadow-sm shadow-primary/30"
         />
-
         {/* Stripe Connect — 5 estados */}
         <SectionCard title="Cuenta de cobros" icon={<Zap size={20} color="#6366F1" />}>
           {(() => {
@@ -457,6 +466,7 @@ export default function ProfessionalProfileScreen() {
           className="mt-4 border-error/50"
           textClassName="text-error"
         />
+        <Button label="Eliminar mi cuenta" variant="ghost" onPress={onDeleteAccount} className="mt-2" textClassName="text-error" />
       </ScrollView>
     </Screen>
   );

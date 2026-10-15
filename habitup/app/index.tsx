@@ -1,49 +1,32 @@
-import React, { useEffect } from 'react';
-import { View, ActivityIndicator, Text } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useColorScheme } from 'nativewind';
+import { useState } from 'react';
+import { Text, View } from 'react-native';
+import { Button, Screen } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
+import { authService } from '@/services/auth.service';
+import { professionalsService } from '@/services/professionals.service';
 import { USER_TYPES } from '@/utils/constants';
 
-export default function Index() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const router = useRouter();
-  const { session, user, professionalProfile, isLoading } = useAuthStore();
+export default function BootstrapScreen() {
+  const { session, user, profileError, setUser, setProfessionalProfile, setProfileError } = useAuthStore();
+  const [retrying, setRetrying] = useState(false);
+  const retry = async () => {
+    if (!session) return;
+    setRetrying(true);
+    setProfileError(null);
+    try {
+      const nextUser = await authService.getCurrentUser();
+      setUser(nextUser);
+      if (nextUser?.user_type === USER_TYPES.PROFESSIONAL) {
+        setProfessionalProfile(await professionalsService.getMyProfile());
+      }
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'No se ha podido cargar tu perfil');
+    } finally { setRetrying(false); }
+  };
 
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!session) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
-    if (!user) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
-    if (user.user_type === USER_TYPES.PROFESSIONAL) {
-      router.replace(professionalProfile ? '/(professional)/home' : '/(professional)/onboarding');
-      return;
-    }
-
-    router.replace('/(client)/home');
-  }, [isLoading, professionalProfile, router, session, user]);
-
-  return (
-    <LinearGradient
-      colors={isDark ? ['#0F1117', '#1A1D29'] : ['#6366F1', '#8B5CF6']}
-      style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-    >
-      <View className="items-center justify-center p-8 bg-white/10 rounded-3xl mb-8">
-        <Text className={`${isDark ? 'text-primary' : 'text-white'} text-4xl font-extrabold tracking-tight`}>
-          HabitUp
-        </Text>
-      </View>
-      <ActivityIndicator size="large" color={isDark ? '#6366F1' : '#FFFFFF'} />
-    </LinearGradient>
-  );
+  return <Screen className="px-6 items-center justify-center">
+    <View className="w-14 h-14 rounded-xl bg-primary items-center justify-center mb-6"><Text className="text-white text-xl font-bold">H</Text></View>
+    <Text className="text-2xl font-bold text-text mb-2">HabitUp</Text>
+    {profileError && session && !user ? <><Text className="text-muted-text text-center mb-6">Tu sesión sigue activa, pero no hemos podido cargar el perfil. Comprueba la conexión y vuelve a intentarlo.</Text><Button label="Volver a intentar" isLoading={retrying} onPress={retry} /></> : <Text className="text-muted-text">Preparando tu cuenta…</Text>}
+  </Screen>;
 }

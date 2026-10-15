@@ -92,7 +92,11 @@ export default function PortfolioScreen() {
             />
           }
           renderItem={({ item }) => {
-            const photos = (item.photos ?? []) as string[];
+            const photos = [
+              item.after_photo_url,
+              item.before_photo_url,
+              ...(Array.isArray(item.additional_photos) ? item.additional_photos : []),
+            ].filter((u): u is string => typeof u === 'string' && u.length > 0);
             const coverUrl = photos[0];
 
             return (
@@ -151,10 +155,10 @@ export default function PortfolioScreen() {
                         <Text className="text-xs text-muted-text ml-1">{item.client_location}</Text>
                       </View>
                     )}
-                    {item.completed_at && (
+                    {item.completion_date && (
                       <View className="flex-row items-center">
                         <Calendar size={12} color={isDark ? '#94A3B8' : '#64748B'} />
-                        <Text className="text-xs text-muted-text ml-1">{item.completed_at}</Text>
+                        <Text className="text-xs text-muted-text ml-1">{item.completion_date}</Text>
                       </View>
                     )}
                   </View>
