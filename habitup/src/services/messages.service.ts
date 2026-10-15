@@ -1,50 +1,91 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
-import type { Message } from '@/types/models';
+import type { Conversation, Message } from '@/types/models';
+
+type SendMessageParams = {
+  conversationId: string;
+  projectId?: string | null;
+  recipientId: string;
+  content?: string;
+  messageType?: Message['message_type'];
+  attachmentUrl?: string;
+};
 
 export const messagesService = {
   async isProjectParticipant(projectId: string): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
-    const { data } = await supabase
+
+    const { data, error } = await supabase
       .from('projects')
       .select('id')
-      .or(`client_id.eq.${user.id},and(professional_id.in.(select id from professional_profiles where user_id.eq.${user.id}))`)
       .eq('id', projectId)
       .maybeSingle();
+
+    if (error) throw error;
     return data !== null;
   },
 
-  async getByProject(projectId: string) {
+  async getOrCreateProjectConversation(projectId: string): Promise<Conversation> {
+    const { data, error } = await supabase
+      .rpc('get_or_create_project_conversation', { p_project_id: projectId });
+
+    if (error) throw error;
+
+    const conversation = ((data ?? []) as Conversation[])[0];
+    if (!conversation) throw new Error('No se pudo resolver la conversacion del proyecto');
+    return conversation;
+  },
+
+  async getOrCreateLeadConversation(
+    leadId: string,
+    professionalId: string,
+  ): Promise<Conversation> {
+    const { data, error } = await supabase
+      .rpc('get_or_create_lead_conversation', {
+        p_lead_id: leadId,
+        p_professional_id: professionalId,
+      });
+
+    if (error) throw error;
+
+    const conversation = ((data ?? []) as Conversation[])[0];
+    if (!conversation) throw new Error('No se pudo resolver la conversacion del lead');
+    return conversation;
+  },
+
+  async getByConversation(conversationId: string): Promise<Message[]> {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .eq('project_id', projectId)
+      .eq('conversation_id', conversationId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
+
     if (error) throw error;
     return (data ?? []) as Message[];
   },
 
+  async getByProject(projectId: string): Promise<Message[]> {
+    const conversation = await this.getOrCreateProjectConversation(projectId);
+    return this.getByConversation(conversation.id);
+  },
+
   async send({
-    projectId,
+    conversationId,
+    projectId = null,
     recipientId,
     content,
     messageType = 'text',
     attachmentUrl,
-  }: {
-    projectId: string;
-    recipientId: string;
-    content?: string;
-    messageType?: Message['message_type'];
-    attachmentUrl?: string;
-  }): Promise<Message> {
+  }: SendMessageParams): Promise<Message> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No autenticado');
 
     const { data, error } = await supabase
       .from('messages')
       .insert({
+        conversation_id: conversationId,
         project_id: projectId,
         sender_id: user.id,
         recipient_id: recipientId,
@@ -54,34 +95,42 @@ export const messagesService = {
       })
       .select()
       .single();
+
     if (error) throw error;
-    trackEvent('message_sent', { project_id: projectId, message_type: messageType });
+
+    trackEvent('message_sent', {
+      conversation_id: conversationId,
+      project_id: projectId,
+      message_type: messageType,
+    });
+
     return data as Message;
   },
 
-  async markAsRead(projectId: string, userId: string): Promise<void> {
+  async markAsRead(conversationId: string, userId: string): Promise<void> {
     const { error } = await supabase
       .from('messages')
       .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('project_id', projectId)
+      .eq('conversation_id', conversationId)
       .eq('recipient_id', userId)
       .eq('is_read', false);
+
     if (error) throw error;
   },
 
-  subscribeToProject(
-    projectId: string,
+  subscribeToConversation(
+    conversationId: string,
     onMessage: (message: Message) => void,
   ) {
     return supabase
-      .channel(`messages:project:${projectId}`)
+      .channel(`messages:conversation:${conversationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `project_id=eq.${projectId}`,
+          filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => onMessage(payload.new as Message),
       )

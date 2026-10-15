@@ -1,4 +1,12 @@
 import type { Database } from './database.types';
+import {
+  USER_TYPES,
+  LEAD_STATUS,
+  QUOTE_STATUS,
+  PROJECT_STATUS,
+  PAYMENT_STATUS,
+  URGENCY,
+} from '@/utils/constants';
 
 // ═════════════════════════════════════════════════════════
 // Table types — derivados de Database (fuente de verdad)
@@ -10,6 +18,7 @@ export type ProfessionalProfile = Database['public']['Tables']['professional_pro
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type Quote = Database['public']['Tables']['quotes']['Row'];
 export type Project = Database['public']['Tables']['projects']['Row'];
+export type Conversation = Database['public']['Tables']['conversations']['Row'];
 export type Message = Database['public']['Tables']['messages']['Row'];
 export type Review = Database['public']['Tables']['reviews']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
@@ -22,6 +31,7 @@ export type PortfolioItem = Database['public']['Tables']['portfolio_items']['Row
 export type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 export type QuoteInsert = Database['public']['Tables']['quotes']['Insert'];
 export type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
+export type ConversationInsert = Database['public']['Tables']['conversations']['Insert'];
 export type MessageInsert = Database['public']['Tables']['messages']['Insert'];
 export type ReviewInsert = Database['public']['Tables']['reviews']['Insert'];
 export type NotificationInsert = Database['public']['Tables']['notifications']['Insert'];
@@ -29,15 +39,6 @@ export type NotificationInsert = Database['public']['Tables']['notifications']['
 // ═════════════════════════════════════════════════════════
 // Domain enum types — añaden valor semántico sobre strings
 // ═════════════════════════════════════════════════════════
-
-import {
-  USER_TYPES,
-  LEAD_STATUS,
-  QUOTE_STATUS,
-  PROJECT_STATUS,
-  PAYMENT_STATUS,
-  URGENCY,
-} from '@/utils/constants';
 
 export type UserType = (typeof USER_TYPES)[keyof typeof USER_TYPES];
 export type LeadStatus = (typeof LEAD_STATUS)[keyof typeof LEAD_STATUS];

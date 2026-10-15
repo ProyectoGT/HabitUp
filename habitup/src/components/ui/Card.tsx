@@ -16,14 +16,13 @@ export const Card = ({ children, style, className, onPress, variant = 'elevated'
         return 'bg-surface';
       case 'elevated':
       default:
-        // NativeWind shadow mapping can be tricky, using general classes and standard shadow
-        return 'bg-surface shadow-sm border border-border/50';
+        return 'bg-surface border border-border';
     }
   };
 
   const content = (
     <View
-      className={`rounded-2xl p-4 ${getVariantStyles()} ${className || ''}`}
+      className={`rounded-xl p-4 ${getVariantStyles()} ${className || ''}`}
       style={style}
       {...rest}
     >

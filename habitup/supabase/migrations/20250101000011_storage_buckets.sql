@@ -66,7 +66,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Without an explicit policy every operation is denied.
 --
 -- Path convention for ownership checks:
---   storage.foldername(name)[1]  →  first folder segment
+--   (storage.foldername(name))[1]  →  first folder segment
 --   For {owner_id}/{uuid}.{ext}  →  owner_id
 
 -- ── 2a. avatars ─────────────────────────────────────────
@@ -83,7 +83,7 @@ CREATE POLICY "avatars: subida propia"
   WITH CHECK (
     bucket_id = 'avatars'
     AND auth.role() = 'authenticated'
-    AND storage.foldername(name)[1] = auth.uid()::text
+    AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
 DROP POLICY IF EXISTS "avatars: actualizacion propia" ON storage.objects;
@@ -92,7 +92,7 @@ CREATE POLICY "avatars: actualizacion propia"
   USING (
     bucket_id = 'avatars'
     AND auth.role() = 'authenticated'
-    AND storage.foldername(name)[1] = auth.uid()::text
+    AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
 DROP POLICY IF EXISTS "avatars: borrado propio" ON storage.objects;
@@ -101,7 +101,7 @@ CREATE POLICY "avatars: borrado propio"
   USING (
     bucket_id = 'avatars'
     AND auth.role() = 'authenticated'
-    AND storage.foldername(name)[1] = auth.uid()::text
+    AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
 -- ── 2b. lead-images ─────────────────────────────────────
@@ -121,7 +121,7 @@ CREATE POLICY "lead-images: subida cliente propietario"
     AND EXISTS (
       SELECT 1
       FROM leads
-      WHERE id::text = storage.foldername(name)[1]
+      WHERE id::text = (storage.foldername(name))[1]
         AND client_id = auth.uid()
     )
   );
@@ -136,7 +136,7 @@ CREATE POLICY "lead-images: borrado cliente propietario"
     AND EXISTS (
       SELECT 1
       FROM leads
-      WHERE id::text = storage.foldername(name)[1]
+      WHERE id::text = (storage.foldername(name))[1]
         AND client_id = auth.uid()
     )
   );
@@ -159,7 +159,7 @@ CREATE POLICY "portfolio-images: subida profesional propietario"
       SELECT 1
       FROM portfolio_items pi
       JOIN professional_profiles pp ON pp.id = pi.professional_id
-      WHERE pi.id::text = storage.foldername(name)[1]
+      WHERE pi.id::text = (storage.foldername(name))[1]
         AND pp.user_id = auth.uid()
     )
   );
@@ -175,7 +175,7 @@ CREATE POLICY "portfolio-images: borrado profesional propietario"
       SELECT 1
       FROM portfolio_items pi
       JOIN professional_profiles pp ON pp.id = pi.professional_id
-      WHERE pi.id::text = storage.foldername(name)[1]
+      WHERE pi.id::text = (storage.foldername(name))[1]
         AND pp.user_id = auth.uid()
     )
   );
@@ -193,7 +193,7 @@ CREATE POLICY "verification-documents: lectura propio o admin"
   USING (
     bucket_id = 'verification-documents'
     AND (
-      storage.foldername(name)[1] = auth.uid()::text
+      (storage.foldername(name))[1] = auth.uid()::text
       OR EXISTS (
         SELECT 1
         FROM users
@@ -211,7 +211,7 @@ CREATE POLICY "verification-documents: subida profesional"
   WITH CHECK (
     bucket_id = 'verification-documents'
     AND auth.role() = 'authenticated'
-    AND storage.foldername(name)[1] = auth.uid()::text
+    AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
 -- Update: the professional can replace their own documents
@@ -221,7 +221,7 @@ CREATE POLICY "verification-documents: actualizacion profesional"
   USING (
     bucket_id = 'verification-documents'
     AND auth.role() = 'authenticated'
-    AND storage.foldername(name)[1] = auth.uid()::text
+    AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
 -- Delete: only admin or service_role (not the professional

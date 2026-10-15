@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/services/supabase';
+import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Project } from '@/types/models';
 import { Screen, Card, Badge, LoadingState, EmptyState } from '@/components/ui';
-import { Hammer, ArrowLeft, Calendar, CircleDollarSign, Filter } from 'lucide-react-native';
+import { Hammer, ArrowLeft, Calendar, CircleDollarSign } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const STATUS_STYLE: Record<string, { label: string; variant: 'warning' | 'info' | 'default' | 'success' | 'error' }> = {
@@ -48,16 +48,13 @@ export default function ProfessionalProjectsScreen() {
   const isDark = colorScheme === 'dark';
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setProjects((data ?? []) as Project[]);
+    const data = await projectsService.getMyProjects();
+    setProjects(data);
   }, []);
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

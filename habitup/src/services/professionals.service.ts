@@ -1,6 +1,101 @@
 import { supabase } from './supabase';
 import { trackEvent } from './analytics.service';
 import type { ProfessionalProfile, ProfessionalProfileWithUser, Category, LeadWithCategoryAndClient } from '@/types/models';
+import type { Database, Json } from '@/types/database.types';
+
+type PublicProfessionalRow = Database['public']['Views']['professionals_with_categories']['Row'];
+
+/** Nivel del sello de visado. Lo decide la BD, nunca el cliente. */
+export type SealLevel = 'top10' | 'top25' | 'verified';
+
+export interface ProfessionalSearchResult {
+  id: string;
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  company_name: string | null;
+  description: string | null;
+  avg_rating: number;
+  /** Media bayesiana: es la que ordena, no avg_rating. */
+  bayes_rating: number;
+  total_reviews: number;
+  total_projects_completed: number;
+  location_city: string | null;
+  location_region: string | null;
+  categories: string | null;
+  category_slugs: string | null;
+  is_active: boolean;
+  accepts_new_leads: boolean;
+  nif_cif_verified: boolean;
+  documents_verified: boolean;
+  /** Score de merito 0..1 que determina el orden. */
+  merit: number;
+  /** Percentil dentro de ESTA busqueda (categoria + zona), no global. */
+  seal_level: SealLevel | null;
+  /** Suscripcion activa con slot promocionado. No altera el orden. */
+  is_promoted: boolean;
+}
+
+/** Fila cruda que devuelve la RPC search_professionals (migracion 028). */
+interface SearchProfessionalsRow {
+  id: string;
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  company_name: string | null;
+  description: string | null;
+  avg_rating: number | string | null;
+  bayes_rating: number | string | null;
+  total_reviews: number | null;
+  total_projects_completed: number | null;
+  location_city: string | null;
+  location_region: string | null;
+  categories: string | null;
+  category_slugs: string | null;
+  is_active: boolean | null;
+  accepts_new_leads: boolean | null;
+  nif_cif_verified: boolean | null;
+  documents_verified: boolean | null;
+  merit: number | string | null;
+  seal_level: string | null;
+  is_promoted: boolean | null;
+}
+
+/** Postgres devuelve NUMERIC como string en JSON: hay que convertirlo. */
+function num(value: number | string | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  return typeof value === 'number' ? value : Number.parseFloat(value) || 0;
+}
+
+function toSealLevel(value: string | null): SealLevel | null {
+  return value === 'top10' || value === 'top25' || value === 'verified' ? value : null;
+}
+
+function fromRpcRow(row: SearchProfessionalsRow): ProfessionalSearchResult {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    full_name: row.full_name,
+    avatar_url: row.avatar_url,
+    company_name: row.company_name,
+    description: row.description,
+    avg_rating: num(row.avg_rating),
+    bayes_rating: num(row.bayes_rating),
+    total_reviews: row.total_reviews ?? 0,
+    total_projects_completed: row.total_projects_completed ?? 0,
+    location_city: row.location_city,
+    location_region: row.location_region,
+    categories: row.categories,
+    category_slugs: row.category_slugs,
+    is_active: row.is_active ?? true,
+    accepts_new_leads: row.accepts_new_leads ?? true,
+    nif_cif_verified: row.nif_cif_verified ?? false,
+    documents_verified: row.documents_verified ?? false,
+    merit: num(row.merit),
+    seal_level: toSealLevel(row.seal_level),
+    is_promoted: row.is_promoted ?? false,
+  };
+}
 
 export interface StripeOnboardingStatus {
   accountId: string | null;
@@ -29,6 +124,60 @@ export interface SearchProfessionalsParams {
   offset?: number;
 }
 
+function categoryNames(categories: Json): string | null {
+  const list = Array.isArray(categories) ? categories : [];
+  const names = list
+    .map((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+      const value = item.name;
+      return typeof value === 'string' ? value : null;
+    })
+    .filter((name): name is string => Boolean(name));
+
+  return names.length > 0 ? names.join(', ') : null;
+}
+
+function toPublicProfile(row: PublicProfessionalRow): ProfessionalProfileWithUser {
+  return {
+    // La vista tipa id/user_id como nullable, pero nunca vienen nulos en filas reales.
+    id: row.id ?? '',
+    user_id: row.user_id ?? '',
+    company_name: row.company_name,
+    company_type: row.company_type,
+    nif_cif: null,
+    nif_cif_verified: row.nif_cif_verified ?? false,
+    nif_cif_verified_at: null,
+    location: null,
+    documents_verified: row.documents_verified ?? false,
+    description: row.description,
+    experience_years: row.experience_years,
+    avg_rating: row.avg_rating ?? 0,
+    total_reviews: row.total_reviews ?? 0,
+    total_projects_completed: row.total_projects_completed ?? 0,
+    response_time_hours: row.response_time_hours,
+    location_city: row.location_city,
+    location_region: row.location_region,
+    location_country: 'Espana',
+    service_radius_km: row.service_radius_km ?? 0,
+    stripe_account_id: null,
+    stripe_account_enabled: false,
+    stripe_account_status: 'not_created',
+    website_url: null,
+    instagram_url: null,
+    facebook_url: null,
+    linkedin_url: null,
+    is_active: row.is_active ?? false,
+    accepts_new_leads: row.accepts_new_leads ?? false,
+    hourly_rate: null,
+    created_at: '',
+    updated_at: '',
+    users: {
+      full_name: row.full_name ?? 'Profesional',
+      avatar_url: row.avatar_url,
+    },
+  };
+}
+
 export const professionalsService = {
   async getMyProfile(): Promise<ProfessionalProfile | null> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -55,15 +204,15 @@ export const professionalsService = {
     return data as ProfessionalProfile | null;
   },
 
-  async getProfileById(id: string) {
+  async getProfileById(id: string): Promise<ProfessionalProfileWithUser | null> {
     const { data, error } = await supabase
-      .from('professional_profiles')
-      .select('*, users(full_name, avatar_url)')
+      .from('professionals_with_categories')
+      .select('*')
       .eq('id', id)
       .single();
     if (error?.code === 'PGRST116') return null;
     if (error) throw error;
-    return data as ProfessionalProfileWithUser | null;
+    return toPublicProfile(data as PublicProfessionalRow);
   },
 
   async createProfile(params: CreateProfileParams): Promise<ProfessionalProfile> {
@@ -97,29 +246,25 @@ export const professionalsService = {
     return data as ProfessionalProfile;
   },
 
-  async search(params: SearchProfessionalsParams) {
-    let query = supabase
-      .from('professionals_with_categories')
-      .select('*')
-      .eq('is_active', true);
+  /**
+   * Busqueda de profesionales.
+   *
+   * Usa la RPC `search_professionals` (migracion 028) en lugar de la vista
+   * `professionals_with_categories`. Motivo: el orden por merito, la media
+   * bayesiana y el percentil del sello se calculan en la base de datos, no
+   * aqui. El cliente NO debe reordenar por criterio comercial.
+   */
+  async search(params: SearchProfessionalsParams): Promise<ProfessionalSearchResult[]> {
+    const { data, error } = await supabase.rpc('search_professionals', {
+      p_city: params.city ?? null,
+      p_category_slug: params.category_slug ?? null,
+      p_min_rating: params.min_rating ?? null,
+      p_limit: params.limit ?? 20,
+      p_offset: params.offset ?? 0,
+    } as never);
 
-    if (params.city) {
-      query = query.ilike('location_city', `%${params.city}%`);
-    }
-    if (params.min_rating) {
-      query = query.gte('avg_rating', params.min_rating);
-    }
-    if (params.category_slug) {
-      query = query.ilike('categories', `%${params.category_slug}%`);
-    }
-
-    query = query
-      .order('avg_rating', { ascending: false })
-      .range(params.offset ?? 0, (params.offset ?? 0) + (params.limit ?? 20) - 1);
-
-    const { data, error } = await query;
     if (error) throw error;
-    return data ?? [];
+    return ((data ?? []) as unknown as SearchProfessionalsRow[]).map(fromRpcRow);
   },
 
   async setCategories(professionalId: string, categoryIds: string[]) {
@@ -164,6 +309,41 @@ export const professionalsService = {
       status,
       enabled,
       canReceivePayments: status === 'active' && enabled,
+    };
+  },
+
+  subscribeToStripeStatus(
+    profileId: string,
+    onStatus: (
+      status: Pick<
+        ProfessionalProfile,
+        'stripe_account_id' | 'stripe_account_status' | 'stripe_account_enabled'
+      >,
+    ) => void,
+  ): () => void {
+    const channel = supabase
+      .channel(`stripe-status:${profileId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'professional_profiles',
+          filter: `id=eq.${profileId}`,
+        },
+        (payload) => {
+          onStatus(
+            payload.new as Pick<
+              ProfessionalProfile,
+              'stripe_account_id' | 'stripe_account_status' | 'stripe_account_enabled'
+            >,
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
     };
   },
 

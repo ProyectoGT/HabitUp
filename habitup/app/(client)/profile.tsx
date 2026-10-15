@@ -7,12 +7,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth.service';
-import { supabase } from '@/services/supabase';
 import { Screen, Card, Input, Button, Avatar, LoadingState, ErrorState } from '@/components/ui';
 import {
   User, Phone, AlignLeft, Mail, LogOut,
   ChevronRight, Bell, CreditCard, Shield,
-  HelpCircle, Moon, Settings,
+  HelpCircle, Settings,
 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -73,11 +72,7 @@ export default function ClientProfileScreen() {
 
   const onSave = async (data: FormData) => {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update(data)
-        .eq('id', user!.id);
-      if (error) throw error;
+      await authService.updateCurrentUserProfile(data);
       Alert.alert('Guardado', 'Perfil actualizado correctamente');
     } catch (e) {
       setError('root', { message: e instanceof Error ? e.message : 'Error al guardar' });
@@ -94,6 +89,16 @@ export default function ClientProfileScreen() {
           router.replace('/(auth)/login');
         },
       },
+    ]);
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert('Eliminar cuenta', 'Esta acción elimina de forma permanente tu cuenta y los datos asociados. No se puede deshacer.', [
+      { text: 'Conservar cuenta', style: 'cancel' },
+      { text: 'Eliminar definitivamente', style: 'destructive', onPress: async () => {
+        try { await authService.deleteAccount(); reset(); router.replace('/(auth)/login'); }
+        catch { Alert.alert('No se pudo eliminar', 'Comprueba tu conexión y vuelve a intentarlo.'); }
+      } },
     ]);
   };
 
@@ -284,6 +289,10 @@ export default function ClientProfileScreen() {
         >
           <LogOut size={20} color="#EF4444" />
           <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 15 }}>Cerrar sesión</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onDeleteAccount} activeOpacity={0.8} className="items-center py-4 mt-3">
+          <Text className="text-error font-semibold">Eliminar mi cuenta</Text>
         </TouchableOpacity>
 
         <Text className="text-center text-xs text-muted-text mt-6">HabitUp v1.0.0</Text>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,7 +9,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { Avatar, Badge, LoadingState, EmptyState, ErrorState, Screen } from '@/components/ui';
 import {
   Bell, DollarSign, Users, Briefcase,
-  ArrowUpRight, Calendar, Image as ImageIcon, Inbox,
+  Calendar, Image as ImageIcon, Inbox,
 } from 'lucide-react-native';
 import type { Lead } from '@/types/models';
 
@@ -178,7 +178,6 @@ export default function ProfessionalHomeScreen() {
             {stats?.recentLeads && stats.recentLeads.length > 0 ? (
               stats.recentLeads.slice(0, 3).map((lead, idx) => {
                 const clientName = (lead as any).users?.full_name ?? 'Cliente';
-                const categoryName = (lead as any).categories?.name ?? '';
                 return (
                   <TouchableOpacity
                     key={lead.id}

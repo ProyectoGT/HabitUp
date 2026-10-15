@@ -1,4 +1,8 @@
-# 🚀 HabitUp — Prompt Maestro para Claude Code
+# HabitUp - Prompt Maestro para Claude Code
+> HISTORICO / NO CANONICO (2026-06-01): este prompt queda archivado como referencia de arranque antigua.
+> Para trabajo actual usa `CLAUDE.md`, `README.md` y las migraciones reales en `habitup/supabase/migrations/`.
+> Contiene decisiones ya superadas, como Expo SDK 51+, React Navigation standalone y OneSignal.
+>
 > Misión: llevar HabitUp de fase de planificación a una app React Native funcional, segura y lista para producción.
 
 ---

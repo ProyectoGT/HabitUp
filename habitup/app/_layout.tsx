@@ -1,6 +1,6 @@
 import '../global.css';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,11 +12,12 @@ import { initSentry } from '@/services/observability';
 
 initSentry();
 
-// Stripe no soporta web — se carga solo en nativo
-const NativeStripeWrapper =
-  Platform.OS !== 'web'
-    ? require('@stripe/stripe-react-native').StripeProvider
-    : ({ children }: { children: React.ReactNode }) => <>{children}</>;
+// Stripe necesita el native module compilado (dev build) — no disponible en Expo Go
+const hasStripeNativeModule = Platform.OS !== 'web' && !!TurboModuleRegistry.get('StripeSdk');
+const NativeStripeWrapper = hasStripeNativeModule
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ? require('@stripe/stripe-react-native').StripeProvider
+  : ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
 export default function RootLayout() {
   const { session, user, professionalProfile, isLoading } = useAuth();
@@ -30,19 +31,16 @@ export default function RootLayout() {
     const segs = segments as string[];
     const inAuthGroup = segs[0] === '(auth)';
     const inOnboarding = segs[0] === '(professional)' && segs[1] === 'onboarding';
+    const inClientOnboarding = segs[0] === '(client)' && segs[1] === 'onboarding';
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/login');
       return;
     }
 
-    if (session && !user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
     if (session && user) {
-      if (inAuthGroup) {
+      const isPasswordRecovery = inAuthGroup && segs[1] === 'reset-password';
+      if (inAuthGroup && !isPasswordRecovery) {
         if (user.user_type === USER_TYPES.PROFESSIONAL) {
           if (!professionalProfile) {
             router.replace('/(professional)/onboarding');
@@ -50,7 +48,7 @@ export default function RootLayout() {
             router.replace('/(professional)/home');
           }
         } else {
-          router.replace('/(client)/home');
+          router.replace(user.onboarding_completed_at ? '/(client)/home' : '/(client)/onboarding');
         }
         return;
       }
@@ -61,11 +59,15 @@ export default function RootLayout() {
         !inOnboarding
       ) {
         router.replace('/(professional)/onboarding');
+      } else if (user.user_type === USER_TYPES.CLIENT && !user.onboarding_completed_at && !inClientOnboarding) {
+        router.replace('/(client)/onboarding');
+      } else if (segs[0] === undefined || segs.length === 0) {
+        router.replace(user.onboarding_completed_at ? '/(client)/home' : '/(client)/onboarding');
       }
     }
-  }, [session, user, professionalProfile, isLoading]);
+  }, [session, user, professionalProfile, isLoading, router, segments]);
 
-  const canUseStripe = Platform.OS !== 'web' && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
+  const canUseStripe = hasStripeNativeModule && ENV.STRIPE_PUBLISHABLE_KEY.length > 0;
   const StripeWrapper = canUseStripe
     ? NativeStripeWrapper
     : ({ children }: { children: React.ReactNode }) => <>{children}</>;

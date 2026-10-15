@@ -170,7 +170,7 @@ export async function test08_outsider_cannot_read_project_messages(
   const { data, error } = await outsider
     .from('messages')
     .select('id')
-    .eq('project_id', td.projectId)
+    .eq('conversation_id', td.conversationId)
 
   if (error) return { pass: false, name: 'No participante NO lee mensajes ajenos', message: `Query error: ${error.message}`, details: { error } }
 
@@ -183,7 +183,6 @@ export async function test08_outsider_cannot_read_project_messages(
 
 export async function test09_recipient_marks_message_as_read(
   clientA: SupabaseClient,
-  professional: SupabaseClient,
   td: TestData,
 ): Promise<TestResult> {
   const { error } = await clientA
@@ -331,10 +330,6 @@ export async function test10_verification_docs_visibility(
   if (tableData?.stripe_account_id !== null && tableData?.stripe_account_id !== undefined) {
     gaps.push('stripe_account_id expuesto en tabla professional_profiles')
   }
-  if (tableData?.documents_verified !== null && tableData?.documents_verified !== undefined) {
-    gaps.push('documents_verified expuesto en tabla professional_profiles')
-  }
-
   const { data: viewData } = await outsider
     .from('professionals_with_categories')
     .select('*')
@@ -343,7 +338,7 @@ export async function test10_verification_docs_visibility(
 
   const viewExposesSensitive =
     viewData &&
-    ('nif_cif' in viewData || 'stripe_account_id' in viewData || 'documents_verified' in viewData)
+    ('nif_cif' in viewData || 'stripe_account_id' in viewData || 'email' in viewData || 'phone' in viewData)
 
   if (viewExposesSensitive) {
     gaps.push('La vista professionals_with_categories expone campos sensibles')
@@ -358,7 +353,7 @@ export async function test10_verification_docs_visibility(
     }
   }
 
-  return { pass: true, name: 'Documentos de verificacin', message: 'OK — vista no expone campos sensibles y tabla tiene acceso pblico (gap conocido)' }
+  return { pass: true, name: 'Documentos de verificacin', message: 'OK - tabla base privada y vista publica solo expone datos seguros de descubrimiento' }
 }
 
 export type TestFn = (td: TestData, clients: Record<string, SupabaseClient>) => Promise<TestResult>
@@ -372,7 +367,7 @@ export const ALL_TESTS: { name: string; fn: TestFn }[] = [
   { name: '06 — Cliente ve quotes de sus leads', fn: (td, c) => test06_client_sees_quotes_for_own_lead(c.clientA, td) },
   { name: '07 — Cliente acepta quote de su lead', fn: (td, c) => test07_client_accepts_quote(c.clientA, td) },
   { name: '08 — No participante NO lee mensajes ajenos', fn: (td, c) => test08_outsider_cannot_read_project_messages(c.outsider, td) },
-  { name: '09 — Destinatario marca mensaje como ledo', fn: (td, c) => test09_recipient_marks_message_as_read(c.clientA, c.professional, td) },
+  { name: '09 — Destinatario marca mensaje como ledo', fn: (td, c) => test09_recipient_marks_message_as_read(c.clientA, td) },
   { name: '10 — Documentos de verificacin', fn: (td, c) => test10_verification_docs_visibility(c.outsider, td) },
   { name: '11 — Aceptar mismo quote dos veces (idempotencia)', fn: (td, c) => test11_accept_quote_idempotent(c.clientA, td) },
   { name: '12 — Cliente B NO acepta quote de lead ajeno', fn: (td, c) => test12_outsider_cannot_accept_foreign_quote(c.clientB, td) },

@@ -6,7 +6,7 @@ import { quotesService } from '@/services/quotes.service';
 import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
-import { Screen, Card, Badge, Button, LoadingState, NotFoundState, EmptyState, ErrorState } from '@/components/ui';
+import { Screen, Card, Badge, Button, LoadingState, NotFoundState, EmptyState } from '@/components/ui';
 import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, Check, X, Inbox } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
@@ -42,7 +42,7 @@ export default function ClientLeadDetailScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

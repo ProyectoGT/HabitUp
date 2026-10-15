@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
+  View, Text, TouchableOpacity, ScrollView,
   Image, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,11 +11,9 @@ import { z } from 'zod';
 import { portfolioService } from '@/services/portfolio.service';
 import { storageService } from '@/services/storage.service';
 import { professionalsService } from '@/services/professionals.service';
-import { useAuthStore } from '@/stores/authStore';
 import type { Category } from '@/types/models';
-import { Screen, Input, Button, Badge } from '@/components/ui';
-import { ArrowLeft, ImagePlus, X, CheckCircle2, Upload } from 'lucide-react-native';
-import { supabase } from '@/services/supabase';
+import { Screen, Input, Button } from '@/components/ui';
+import { ArrowLeft, ImagePlus, X, Upload } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const schema = z.object({
@@ -28,7 +26,6 @@ type FormData = z.infer<typeof schema>;
 
 export default function AddPortfolioItemScreen() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -96,21 +93,15 @@ export default function AddPortfolioItemScreen() {
   };
 
   const uploadPhoto = async (photo: ImagePicker.ImagePickerAsset, itemId: string): Promise<string> => {
-    const ext = photo.fileName?.split('.').pop() ?? 'jpg';
-    const path = `${itemId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-
-    const response = await fetch(photo.uri);
-    const blob = await response.blob();
-
-    const { error } = await supabase.storage.from('portfolio-images').upload(path, blob, {
-      contentType: photo.mimeType || 'image/jpeg',
-      upsert: false,
+    const upload = await storageService.upload('portfolio-images', itemId, {
+      uri: photo.uri,
+      contentType: photo.mimeType ?? 'image/jpeg',
+      name: photo.fileName ?? `${itemId}.jpg`,
+      size: photo.fileSize ?? 0,
     });
 
-    if (error) throw error;
-
-    const { data: { publicUrl } } = supabase.storage.from('portfolio-images').getPublicUrl(path);
-    return publicUrl;
+    if (!upload.publicUrl) throw new Error('No se pudo obtener la URL publica de la foto');
+    return upload.publicUrl;
   };
 
   return (

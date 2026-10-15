@@ -3,17 +3,15 @@ import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-na
 import { useRouter } from 'expo-router';
 import { leadsService } from '@/services/leads.service';
 import { quotesService } from '@/services/quotes.service';
-import { supabase } from '@/services/supabase';
 import { LeadCard } from '@/components/leads';
-import { formatCurrency } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
 import { Screen, LoadingState, EmptyState, ErrorState } from '@/components/ui';
-import { ArrowLeft, Inbox, Clock, AlertTriangle, DollarSign, ArrowUpDown } from 'lucide-react-native';
+import { ArrowLeft, Inbox, Clock, AlertTriangle, DollarSign, type LucideIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 type SortMode = 'newest' | 'urgent' | 'budget';
 
-const SORT_OPTIONS: { key: SortMode; label: string; Icon: any }[] = [
+const SORT_OPTIONS: { key: SortMode; label: string; Icon: LucideIcon }[] = [
   { key: 'newest', label: 'Nuevos', Icon: Clock },
   { key: 'urgent', label: 'Urgentes', Icon: AlertTriangle },
   { key: 'budget', label: 'Presupuesto', Icon: DollarSign },
@@ -61,29 +59,13 @@ export default function AvailableLeadsScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('available-leads')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'leads',
-          filter: `status=eq.activo`,
-        },
-        () => {
-          load();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+    return leadsService.subscribeToAvailableLeads(() => {
+      void load();
+    });
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as ExpoNotifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -9,6 +10,8 @@ import type { Notification } from '@/types/models';
 
 // Notificaciones solo disponibles en nativo
 const isNative = Platform.OS !== 'web';
+// Push remotas eliminadas de Expo Go en SDK 53 — requieren dev build
+const canUsePushNotifications = isNative && Constants.appOwnership !== 'expo';
 
 if (isNative) {
   ExpoNotifications.setNotificationHandler({
@@ -24,33 +27,34 @@ if (isNative) {
 
 export function useNotifications() {
   const user = useAuthStore((s) => s.user);
+  const userId = user?.id;
   const { setNotifications, addNotification, unreadCount } = useNotificationStore();
   const router = useRouter();
   const responseListenerRef = useRef<ExpoNotifications.EventSubscription | null>(null);
   const realtimeChannelRef = useRef<ReturnType<typeof notificationsService.subscribeToNew> | null>(null);
 
   useEffect(() => {
-    if (!user || !isNative) return;
+    if (!userId || !canUsePushNotifications) return;
     registerForPushNotifications();
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     notificationsService.getAll().then(setNotifications).catch(() => null);
 
     realtimeChannelRef.current = notificationsService.subscribeToNew(
-      user.id,
+      userId,
       (n: Notification) => addNotification(n),
     );
 
     return () => {
       realtimeChannelRef.current?.unsubscribe();
     };
-  }, [user?.id]);
+  }, [addNotification, setNotifications, userId]);
 
   useEffect(() => {
-    if (!isNative) return;
+    if (!canUsePushNotifications) return;
 
     responseListenerRef.current = ExpoNotifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -68,10 +72,10 @@ export function useNotifications() {
     return () => {
       responseListenerRef.current?.remove();
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    if (!isNative) return;
+    if (!canUsePushNotifications) return;
     ExpoNotifications.setBadgeCountAsync(unreadCount).catch(() => null);
   }, [unreadCount]);
 
@@ -79,7 +83,7 @@ export function useNotifications() {
 }
 
 async function registerForPushNotifications() {
-  if (!isNative) return;
+  if (!canUsePushNotifications) return;
 
   const { status: existing } = await ExpoNotifications.getPermissionsAsync();
   let finalStatus = existing;

@@ -4,13 +4,13 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuthStore } from '@/stores/authStore';
 import { verificationService, type VerificationDocument } from '@/services/verification.service';
-import { supabase } from '@/services/supabase';
+import { storageService } from '@/services/storage.service';
 import { Screen, Card, Button, VerifiedBadge, LoadingState } from '@/components/ui';
 import { ShieldCheck, Upload, FileText, CheckCircle2, XCircle, ChevronLeft } from 'lucide-react-native';
 
 export default function VerificationScreen() {
   const router = useRouter();
-  const { professionalProfile } = useAuthStore();
+  const { user, professionalProfile } = useAuthStore();
   const [documents, setDocuments] = useState<VerificationDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +30,7 @@ export default function VerificationScreen() {
   };
 
   const handleUpload = async (documentType: string) => {
-    if (!professionalProfile) return;
+    if (!professionalProfile || !user) return;
 
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -41,23 +41,14 @@ export default function VerificationScreen() {
       if (result.canceled || !result.assets?.[0]) return;
 
       const file = result.assets[0];
-      const ext = file.name?.split('.').pop() ?? 'pdf';
-      const filePath = `${professionalProfile.id}/${documentType}_${Date.now()}.${ext}`;
-
-      const formData = new FormData();
-      formData.append('file', {
+      const upload = await storageService.upload('verification-documents', user.id, {
         uri: file.uri,
-        type: file.mimeType ?? 'application/pdf',
-        name: file.name ?? filePath,
-      } as any);
+        contentType: file.mimeType ?? 'application/pdf',
+        name: file.name ?? `${documentType}.pdf`,
+        size: file.size ?? 0,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('verification-documents')
-        .upload(filePath, formData);
-
-      if (uploadError) throw uploadError;
-
-      const doc = await verificationService.uploadDocument(professionalProfile.id, documentType, filePath);
+      const doc = await verificationService.uploadDocument(professionalProfile.id, documentType, upload.path);
 
       setDocuments((prev) => {
         const existing = prev.findIndex((d) => d.document_type === documentType);

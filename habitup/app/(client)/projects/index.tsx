@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/services/supabase';
+import { projectsService } from '@/services/projects.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Project } from '@/types/models';
 import { Screen, Card, Badge, LoadingState, EmptyState } from '@/components/ui';
@@ -27,16 +27,13 @@ export default function ClientProjectsScreen() {
   const isDark = colorScheme === 'dark';
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setProjects((data ?? []) as Project[]);
+    const data = await projectsService.getMyProjects();
+    setProjects(data);
   }, []);
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);

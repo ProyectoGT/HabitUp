@@ -12,8 +12,8 @@ import { quotesService } from '@/services/quotes.service';
 import { LEAD_STATUS, QUOTE_STATUS } from '@/utils/constants';
 import { formatCurrency, formatDate, formatRelativeTime } from '@/utils/formatters';
 import type { Lead, Quote } from '@/types/models';
-import { Screen, Card, Button, Input, Badge, Avatar, LoadingState, NotFoundState, ErrorState } from '@/components/ui';
-import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, AlertTriangle, X, SendHorizontal, FileText, CheckCircle2, User } from 'lucide-react-native';
+import { Screen, Card, Button, Input, Badge, Avatar, LoadingState, NotFoundState } from '@/components/ui';
+import { ArrowLeft, MapPin, CircleDollarSign, Calendar, Clock, AlertTriangle, X, SendHorizontal, FileText, CheckCircle2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 const quoteSchema = z.object({
@@ -56,7 +56,7 @@ export default function ProfessionalLeadDetailScreen() {
 
   useEffect(() => {
     load().finally(() => setIsLoading(false));
-  }, []);
+  }, [load]);
 
   const onSendQuote = async (data: QuoteForm) => {
     try {
